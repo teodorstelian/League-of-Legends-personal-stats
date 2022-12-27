@@ -14,12 +14,13 @@ print(summoner['summonerLevel'])
 # all objects are returned (by default) as a dict
 # lets see if i got diamond yet (i probably didnt)
 my_ranked_stats = watcher.league.by_summoner(region, summoner['id'])
-print(my_ranked_stats)
+print(my_ranked_stats[0]['queueType'], my_ranked_stats[0]['tier'], my_ranked_stats[0]['rank'])
 
-# First we get the latest version of the game from data dragon
-versions = watcher.data_dragon.versions_for_region(region)
-champions_version = versions['n']['champion']
 
-# Lets get some champions
-current_champ_list = watcher.data_dragon.champions(champions_version)
-print(current_champ_list)
+# # First we get the latest version of the game from data dragon
+# versions = watcher.data_dragon.versions_for_region(region)
+# champions_version = versions['n']['champion']
+#
+# # Lets get some champions
+# current_champ_list = watcher.data_dragon.champions(champions_version)
+# print(current_champ_list)
