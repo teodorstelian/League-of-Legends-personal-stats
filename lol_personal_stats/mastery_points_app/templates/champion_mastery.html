@@ -2,20 +2,28 @@
 
 {% block content %}
     <h1>Champion Mastery Points</h1>
+    <form method="GET">
+        <label for="champion_name">Enter Champion Name:</label>
+        <input type="text" name="champion_name" id="champion_name" required>
+        <button type="submit">Search</button>
+    </form>
     <table>
         <thead>
             <tr>
                 <th>Champion Name</th>
                 <th>Mastery Points</th>
+                <th>Level</th>
             </tr>
         </thead>
         <tbody>
             {% for champion, points in mastery_points.items %}
-                <tr>
-                    <td>{{ champion }}</td>
-                    <td>{{ points }}</td>
-                </tr>
+                    <tr>
+                        <td><a href="{{ champion }}">{{ champion }}</a></td>
+                        <td>{{ points.0}}</td>
+                        <td>{{ points.1}}</td>
+                    </tr>
             {% endfor %}
         </tbody>
     </table>
+
 {% endblock %}

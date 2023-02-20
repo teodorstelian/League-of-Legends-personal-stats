@@ -17,7 +17,6 @@ class Summoner:
                        f"/lol/summoner/v4/summoners/by-name/{self.summoner_name}?api_key={self.api_key}"
         summoner_response = requests.get(summoner_url)
         summoner_data = summoner_response.json()
-        print(summoner_data)
         self.id = summoner_data["id"]
 
     def get_masteries(self):
@@ -30,3 +29,10 @@ class Summoner:
                         f"v4/champion-masteries/by-summoner/{self.id}?api_key={self.api_key}"
         masteries_response = requests.get(masteries_url)
         return masteries_response.json()
+
+    def get_matches(self):
+        self.get_id()
+        matches_url = f'https://{self.region}.api.riotgames.com/lol/match/' \
+                      f'v4/matchlists/by-account/{self.id}?api_key={self.api_key}'
+        matches_response = requests.get(matches_url)
+        return matches_response.json()
