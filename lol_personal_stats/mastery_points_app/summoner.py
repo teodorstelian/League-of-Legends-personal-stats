@@ -17,6 +17,7 @@ class Summoner:
                        f"/lol/summoner/v4/summoners/by-name/{self.summoner_name}?api_key={self.api_key}"
         summoner_response = requests.get(summoner_url)
         summoner_data = summoner_response.json()
+        print(summoner_data)
         self.id = summoner_data["id"]
 
     def get_masteries(self):

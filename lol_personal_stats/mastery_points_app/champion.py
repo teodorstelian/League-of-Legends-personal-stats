@@ -3,13 +3,10 @@ import requests
 
 class Champion:
 
-    def __init__(self):
-        pass
-
     def retrieve_id_and_name(self):
         """
             Method where we retrieve the id and names of all the champions
-        :return:
+        :return: A dictionary containing the champion id and name
         """
         champion_url = "http://ddragon.leagueoflegends.com/cdn/13.1.1/data/en_US/champion.json"
         champion_response = requests.get(champion_url)

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Champion Mastery Points</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Champion Name</th>
+                <th>Mastery Points</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for champion, points in mastery_points.items %}
+                <tr>
+                    <td>{{ champion }}</td>
+                    <td>{{ points }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
