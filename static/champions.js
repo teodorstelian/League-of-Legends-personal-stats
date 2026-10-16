@@ -2,7 +2,7 @@ const $ = id => document.getElementById(id);
 let data, displayedQueue = 'all';
 const columns = [
   ['name','Champion', 'Champion name'], ['score','Avg Rift Score','Average Rift Score'],
-  ['samples','Scored / saved','Scored games, then saved games'], ['winRate','Win rate','Win rate'],
+  ['samples','Games','Games played'], ['winRate','Win rate','Win rate'],
   ['record','W / L','Wins, then fewer losses'], ['kda','Avg K / D / A','KDA ratio: (kills + assists) / max(1, deaths)'],
   ['mastery','Mastery points','Mastery points']
 ];
@@ -34,7 +34,7 @@ function render() {
   const value=c=>{
     if(sort==='name')return c.name;
     if(sort==='score')return c.scoreStats.average;
-    if(sort==='samples')return c.scoreStats.scored;
+    if(sort==='samples')return c.games.length;
     if(sort==='games')return c.games.length;
     if(sort==='winRate')return c.winRate;
     if(sort==='record')return c.games.length?c.wins:null;
@@ -60,7 +60,7 @@ function render() {
     if (c.icon) { const image = node('img'); image.src = c.icon; image.alt = ''; image.loading = 'lazy'; link.append(image); }
     link.append(node('span', c.name)); name.append(link); row.append(name);
     const score = node('td'); score.append(scoreGauge(c.scoreStats.average)); row.append(score);
-    const sample = node('td', `${c.scoreStats.scored} / ${c.games.length}`);
+    const sample = node('td', `${c.games.length}`);
     if (c.scoreStats.scored > 0 && c.scoreStats.scored < 5) sample.append(node('small','Small sample','small-sample')); row.append(sample);
     row.append(node('td', c.winRate === null ? '—' : `${c.winRate.toFixed(0)}%`), node('td', `${c.wins} / ${c.games.length - c.wins}`));
     row.append(node('td', c.games.length ? ['kills','deaths','assists'].map(k => (c.games.reduce((n,m) => n + m[k],0) / c.games.length).toFixed(1)).join(' / ') : '—'), node('td',new Intl.NumberFormat().format(c.points)));

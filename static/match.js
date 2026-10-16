@@ -40,6 +40,14 @@ function render() {
   $('rift-score').replaceChildren(scoreGauge(own.score.value, 'gauge-hero'));
   $('comparison').textContent = `${own.score.comparison || own.score.reason}${own.score.coverage ? ` · ${own.score.coverage}` : ''}`;
   $('method').textContent = own.score.method || own.score.reason;
+  let explanation=$('score-explanation');
+  if(!explanation){explanation=el('div',undefined,'score-explanation');explanation.id='score-explanation';$('components').before(explanation);}
+  explanation.replaceChildren();
+  if(own.score.explanations)for(const [key,title] of [['strengths','Largest contributions'],['gaps','Largest gaps to full targets']]){
+    const panel=el('article');panel.append(el('h3',title));
+    for(const text of own.score.explanations[key])panel.append(el('p',text,'muted'));
+    explanation.append(panel);
+  }
   $('components').replaceChildren();
   for (const c of own.score.components) {
     const card = el('article', undefined, 'component');

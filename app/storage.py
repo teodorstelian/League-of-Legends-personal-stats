@@ -2,7 +2,7 @@ import json
 import sqlite3
 from pathlib import Path
 from .history_policy import eligible_summary, eligible_info
-from .scoring import score_player
+from .scoring import score_player, VERSION
 
 DB = Path(__file__).resolve().parent.parent / 'data/journal.sqlite3'
 
@@ -84,6 +84,7 @@ def apply_history_policy():
     """Remove excluded history and reset pagination once for ranked-only imports."""
     removed = 0
     with connect() as db:
+        catalogs = {p: {c['championId']: c.get('tags') for c in json.loads(body).get('champions', [])} for p, body in db.execute('SELECT player,body FROM profiles').fetchall()}
         for player, match_id, body, raw_body in db.execute('SELECT m.player,m.id,m.body,d.body FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id').fetchall():
             keep = eligible_summary(json.loads(body))
             if raw_body:
@@ -98,12 +99,14 @@ def apply_history_policy():
                 info = detail['raw']['info']
                 own = next((p for p in info['participants'] if p.get('puuid') == detail['puuid']), None)
                 if own:
-                    value['score'] = score_player(info, own)['value']
-                    value['scoreVersion'] = '2'
+                    score = score_player(info, own, catalogs.get(player, {}).get(own['championId']))
+                    value['score'] = score['value']
+                    value['archetype'] = score.get('archetype', 'Unscored')
+                    value['scoreVersion'] = VERSION
                     db.execute('UPDATE matches SET body=? WHERE player=? AND id=?', (json.dumps(value), player, match_id))
-            elif json.loads(body).get('scoreVersion') != '2':
+            elif json.loads(body).get('scoreVersion') != VERSION:
                 value = json.loads(body)
-                value.update(score=None, scoreVersion='2')
+                value.update(score=None, scoreVersion=VERSION, archetype='Awaiting details')
                 db.execute('UPDATE matches SET body=? WHERE player=? AND id=?', (json.dumps(value), player, match_id))
         db.execute('DELETE FROM details WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.player=details.player AND m.id=details.id)')
         for player, body in db.execute('SELECT player,body FROM profiles').fetchall():

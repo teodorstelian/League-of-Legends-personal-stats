@@ -94,3 +94,49 @@ def test_too_many_missing_metrics_do_not_produce_a_perfect_score():
     for field in ['goldEarned','visionScore','damageDealtToObjectives','totalDamageDealtToChampions']:
         del p[field]
     assert score_player(info, p)['value'] is None
+
+
+def test_damage_support_does_not_need_healing_and_gets_damage_weights():
+    info = game()
+    p = info['participants'][4]
+    p['championName'] = 'Zyra'
+    del p['totalHealsOnTeammates']
+    del p['totalDamageShieldedOnTeammates']
+    score = score_player(info,p,['Mage','Support'])
+    assert score['archetype'] == 'Damage support'
+    assert score['components'][0]['name'] == 'Champion damage'
+    assert score['components'][0]['weight'] == 30
+    assert score['value'] is not None
+
+
+def test_tank_emphasizes_cc_without_rewarding_damage_taken():
+    info = game()
+    p = info['participants'][1]
+    p['timeCCingOthers'] = 45
+    score = score_player(info,p,['Tank','Mage'])
+    assert score['archetype'] == 'Tank'
+    cc=next(c for c in score['components'] if c['name']=='Crowd control')
+    assert cc['weight']==15 and cc['value']==100
+    p['totalDamageTaken']=999999
+    assert score_player(info,p,['Tank','Mage'])['value']==score['value']
+    assert len(score['explanations']['strengths'])==2
+
+
+def test_split_profile_only_applies_in_solo_lanes():
+    info=game()
+    p=info['participants'][0]
+    p.update(championName='Yorick',damageDealtToTurrets=18000)
+    score=score_player(info,p,['Fighter','Tank'])
+    assert score['archetype']=='Split-pusher'
+    tower=next(c for c in score['components'] if c['name']=='Tower pressure')
+    assert tower['weight']==30 and tower['value']==100
+    p['teamPosition']='JUNGLE'
+    assert score_player(info,p,['Fighter','Tank'])['archetype']=='Fighter'
+
+
+def test_carry_and_fallback_profiles_are_explicit():
+    info=game();p=info['participants'][0]
+    assert score_player(info,p,['Marksman'])['components'][0]['weight']==30
+    assert 'unavailable' in score_player(info,p)['archetype']
+    assert score_player(info,p,['Support','Marksman'])['archetype']=='Marksman carry'
+    assert score_player(info,p,['Support'])['archetype']=='Role baseline (unmapped tags)'

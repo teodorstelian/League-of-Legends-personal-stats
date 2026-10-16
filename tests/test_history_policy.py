@@ -60,6 +60,6 @@ def test_existing_scores_are_recalculated_without_mixing_versions(tmp_path, monk
     storage.apply_history_policy()
     saved = {m['id']: m for m in storage.matches('me')}
     assert saved['old']['score'] == score_player(info, info['participants'][0])['value']
-    assert saved['old']['scoreVersion'] == '2'
+    assert saved['old']['scoreVersion'] == '3'
     assert saved['no-detail']['score'] is None
-    assert saved['no-detail']['scoreVersion'] == '2'
+    assert saved['no-detail']['scoreVersion'] == '3'

@@ -180,8 +180,8 @@ def test_saved_profile_serves_history_without_network(monkeypatch):
     monkeypatch.setenv('RIOT_API_KEY', 'unused')
     monkeypatch.setenv('RIOT_ID', 'Test#EU')
     storage.profile('Test#EU', {'queue': 'all', 'champions': [{'championId': 1, 'name': 'Annie', 'icon': 'icon'}]})
-    storage.save_match('Test#EU', {'id': 'one', 'playedAt': 100, 'queue': 420, 'duration': 1200, 'championId': 1, 'score': 40, 'scoreVersion': '2', 'role': 'TOP'})
-    storage.save_match('Test#EU', {'id': 'two', 'playedAt': 200, 'queue': 440, 'duration': 1200, 'championId': 1, 'score': 80, 'scoreVersion': '2', 'mode': 'CLASSIC'})
+    storage.save_match('Test#EU', {'id': 'one', 'playedAt': 100, 'queue': 420, 'duration': 1200, 'championId': 1, 'score': 40, 'scoreVersion': '3', 'role': 'TOP'})
+    storage.save_match('Test#EU', {'id': 'two', 'playedAt': 200, 'queue': 440, 'duration': 1200, 'championId': 1, 'score': 80, 'scoreVersion': '3', 'mode': 'CLASSIC'})
     async def no_network(*args, **kwargs):
         pytest.fail('Saved history should not wait for Riot')
     monkeypatch.setattr('app.main.fetch', no_network)
@@ -220,7 +220,7 @@ def test_match_details_use_saved_data_and_reject_unknown_matches(monkeypatch):
     own = next(p for p in body['participants'] if p['you'])
     from app.scoring import score_player
     assert own['score']['value'] == score_player(info, info['participants'][0])['value']
-    assert own['score']['version'] == '2'
+    assert own['score']['version'] == '3'
     assert own['items'][0]['name'] == 'Boots'
     assert own['spells'][0]['name'] == 'Flash'
     assert own['runes'][0]['name'] == 'Press the Attack'
@@ -271,3 +271,15 @@ def test_trends_page_filters_and_validation(monkeypatch):
         assert client.get('/api/trends?role=UTILITY').json()['current']['total']==0
         assert client.get('/api/trends?champion=-1').status_code==422
         assert client.get('/api/trends?queue=aram').status_code==422
+
+
+def test_calibration_route_and_queue(monkeypatch):
+    async def fake_dashboard(queue):
+        return {'queue':queue,'matches':[],'champions':[]}
+    monkeypatch.setattr('app.main.get_dashboard',fake_dashboard)
+    with TestClient(app) as client:
+        assert client.get('/calibration').status_code==200
+        body=client.get('/api/calibration?queue=solo').json()
+        assert body['queue']=='solo' and body['version']=='3'
+        assert body['overall']['count']==0
+        assert client.get('/api/calibration?minimum=0').status_code==422

@@ -18,7 +18,7 @@ function riftScoreText(stats) {
   return stats?.average === null || stats?.average === undefined ? '—' : `${stats.average.toFixed(1)} / 100`;
 }
 function riftScoreSample(stats) {
-  return `${stats.scored} scored / ${stats.total} saved game${stats.total === 1 ? '' : 's'}${stats.scored > 0 && stats.scored < 5 ? ' · Small sample' : ''}`;
+  return `${stats.total} game${stats.total === 1 ? '' : 's'}${stats.total > 0 && stats.total < 5 ? ' · Small sample' : ''}`;
 }
 function renderScoreSummary(stats, lanes) {
   document.getElementById('average-score').replaceChildren(scoreGauge(stats.average, 'gauge-large', 'Average Rift Score'));

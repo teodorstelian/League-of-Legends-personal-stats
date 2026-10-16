@@ -14,7 +14,8 @@ from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from . import storage
-from .scoring import score_player
+from .scoring import score_player, VERSION
+from .calibration import calibration_report
 from .statistics import enrich_dashboard, score_average, lane_averages, champion_tiers
 from .history_policy import eligible_info
 from .trends import performance_trends
@@ -49,16 +50,17 @@ async def sync_worker(client):
                 await asyncio.sleep(2)
                 continue
             saved = storage.matches(player)
-            if time.monotonic() - last_profile.get(player, 0) > 300:
+            refresh_request = state.get('refreshRequest', 0)
+            if player not in last_profile or last_profile[player] != refresh_request:
                 profile = await dashboard(client, key, player)
                 storage.profile(player, profile)
-                last_profile[player] = time.monotonic()
+                last_profile[player] = refresh_request
             backfill = len(saved) < state['target'] and not state['exhausted']
-            recent = time.monotonic() - last_recent.get(player, 0) > 300
+            recent = player not in last_recent or last_recent[player] != refresh_request
             pending = storage.pending(player) if not backfill and not recent else []
             hydrate = bool(pending)
             if not backfill and not recent and not hydrate:
-                sync_status.update(status='idle', message='Up to date. Checking for new games every 5 minutes.')
+                sync_status.update(status='idle', message='Idle. Use Check new games to update; automatic periodic fetching is off.')
                 await asyncio.sleep(2)
                 continue
             sync_status.update(status='syncing', message='Checking new games…' if recent else 'Importing older games…')
@@ -91,7 +93,7 @@ async def sync_worker(client):
                 current.setdefault('end', state['end'])
                 if recent:
                     if not saved or not ids or any(mid in known for mid in ids) or len(ids) < 20:
-                        last_recent[player] = time.monotonic()
+                        last_recent[player] = refresh_request
                         current['recent_offset'] = 0
                     else:
                         current['recent_offset'] = offset + len(ids)
@@ -217,6 +219,9 @@ def match_summary(match, puuid):
     if not player:
         return None
     duration = info.get('gameDuration', 0)
+    catalog = (storage.profile(configuration()[1]) or {}).get('champions', [])
+    tags = next((c.get('tags') for c in catalog if c['championId'] == player['championId']), None)
+    score = score_player(info, player, tags)
     return {
         'id': match['metadata']['matchId'], 'champion': player['championName'],
         'championId': player['championId'], 'win': player['win'],
@@ -224,8 +229,8 @@ def match_summary(match, puuid):
         'cs': player.get('totalMinionsKilled', 0) + player.get('neutralMinionsKilled', 0),
         'duration': duration, 'mode': info.get('gameMode', 'Unknown'),
         'queue': info.get('queueId'), 'playedAt': info.get('gameStartTimestamp', 0),
-        'score': score_player(info, player)['value'],
-        'scoreVersion': '2',
+        'score': score['value'], 'archetype': score.get('archetype', 'Unscored'),
+        'scoreVersion': VERSION,
         'role': player.get('teamPosition') or 'UNKNOWN',
     }
 
@@ -335,11 +340,13 @@ async def get_sync():
 
 
 @app.post('/api/sync/{action}')
-async def control_sync(action: Literal['pause', 'resume', 'more']):
+async def control_sync(action: Literal['pause', 'resume', 'more', 'check']):
     _, player = configuration()
     state = storage.state(player)
     if action == 'more':
         state['target'] = max(state['target'], len(storage.matches(player))) + 100
+    if action == 'check':
+        state['refreshRequest'] = time.time_ns()
     state['paused'] = action == 'pause'
     storage.save_state(player, state)
     return await get_sync()
@@ -426,8 +433,21 @@ async def build_match_details(stored):
             'items': [asset(p.get(f'item{i}', 0), items, 'item') if p.get(f'item{i}') else None for i in range(7)],
             'spells': [asset(p.get(f'summoner{i}Id', 0), spells, 'spell') for i in (1, 2)],
             'runes': [asset(s['perk'], runes, 'rune') for style in perks.get('styles', []) for s in style.get('selections', [])],
-            'statShards': perks.get('statPerks', {}), 'score': score_player(info, p)})
+            'statShards': perks.get('statPerks', {}), 'score': score_player(info, p, champion.get('tags'))})
     return {'id': raw['metadata']['matchId'], 'mode': info.get('gameMode'), 'queue': info.get('queueId'),
             'duration': info.get('gameDuration', 0), 'playedAt': info.get('gameStartTimestamp', 0),
             'patch': info.get('gameVersion'), 'participants': participants,
             'teams': info.get('teams', []), 'warning': warning}
+
+
+@app.get('/calibration')
+async def calibration_page():
+    return FileResponse(ROOT / 'static/calibration.html')
+
+
+@app.get('/api/calibration')
+async def get_calibration(queue: Literal['all', 'solo', 'flex'] = 'all', minimum: int = Query(default=5, ge=1, le=1000)):
+    data = await get_dashboard(queue)
+    if isinstance(data, JSONResponse):
+        return data
+    return calibration_report(data, minimum)

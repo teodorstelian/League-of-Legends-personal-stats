@@ -1,4 +1,8 @@
 let syncState;
+const checkGames = document.createElement('button');
+checkGames.className = 'secondary'; checkGames.textContent = 'Check new games';
+checkGames.addEventListener('click', () => command('check'));
+document.getElementById('sync-toggle').before(checkGames);
 async function updateSync() {
   try {
     const response = await fetch('/api/sync');
