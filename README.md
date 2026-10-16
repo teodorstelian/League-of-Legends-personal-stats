@@ -1,6 +1,6 @@
 # Rift Journal
 
-A local FastAPI dashboard for **Bagabondu#1909 · EUNE**, with champion mastery, the ten most recent matches, and recent performance totals. No database or frontend build step required.
+A local FastAPI dashboard for **Bagabondu#1909 · EUNE**, with champion mastery, saved match history, and performance totals. SQLite is created automatically; no frontend build step required.
 
 ## Run on Windows
 
@@ -25,20 +25,21 @@ On a fresh clone, copy `.env.example` to `.env` first. The key is only sent from
 
 ## Behavior
 
-- Account and match requests use Europe routing; mastery and summoner requests use EUN1.
-- Dashboard responses are cached in memory for two minutes. Champion metadata is cached for six hours and uses the latest Data Dragon version.
-- Match requests run sequentially to limit bursts. Rate limits, expired keys, missing players, and timeouts produce readable messages. Partial match results show a warning.
-- Win rate and averages describe only the loaded recent matches, across all queues, not the full ranked season. No sample stats are presented as live data.
-- Champion filtering is case insensitive. The initial view shows the top eight champions, with an option to show all.
-- Champion cards link to `/champions/{id}` with mastery, roles, recent win rate, average K/D/A, CS/min, and matching games. Search and Browse all include the complete champion catalog, including unplayed champions. Champion match stats filter the latest ten account games for the selected queue; they are not lifetime stats or the last ten games on that champion. Empty samples display no averages.
-- Ranked overview shows current Solo/Duo and Flex tier, division, LP, wins, losses, and win rate. Missing entries appear as Unranked; API failures appear as unavailable.
-- The queue selector fetches the latest ten matches for All queues, Solo/Duo, Flex, or ARAM from Riot. Recent win rate and average K/D/A follow that selection; mastery and current standings remain account-wide. Each queue has its own two-minute cache.
+- A background worker starts with the app and imports a target of 100 recent matches in batches of 20. Import 100 more extends the target; a batch may slightly exceed the target.
+- SQLite lives in `data/journal.sqlite3`, ignored by Git. Matches are deduplicated per Riot ID and match ID. The import position, target, pause state, and player profile survive restarts. Keys are never stored in the database.
+- The worker checks for new games every five minutes while running. Close the server and syncing stops; restart it to resume. Run only one server worker against this database.
+- Pause/resume and import-more controls appear on both pages, along with saved count, target, oldest saved game, and status. An in-flight request may finish after pausing.
+- Historical pagination uses a fixed end timestamp. Exhausting Riot's available history stops older imports; newer games are still checked automatically.
+- Riot requests share a conservative 1.3-second spacing. On a 429 response the worker honors Retry-After and retries later; network/key failures also retry without losing saved matches.
+- Dashboard and champion stats use all imported games for the chosen queue, not lifetime totals. Queue options are All, Solo/Duo, Flex, and ARAM. Profile/mastery/ranks refresh in the background every five minutes, and persisted data serves immediately after the initial setup.
+- Pages poll sync status and refresh saved stats as imports progress. Search and Browse all cover all champions, including unplayed champions.
+- Account and match requests use Europe routing; mastery and summoner requests use EUN1. Champion assets use the latest Data Dragon catalog cached for six hours.
 - This version is a single-user local app. Keep it bound to localhost.
 
 ## Tests
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m pytest -q --basetemp .pytest_cache/run
 ```
 
 Tests mock Riot responses and do not require a real key.

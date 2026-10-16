@@ -21,14 +21,14 @@ function render() {
   $('title').textContent = data.title;
   $('queue').value = data.queue;
   const matches = data.matches, wins = matches.filter(m => m.win).length;
-  $('sample').textContent = `${matches.length} ${data.name} game${matches.length === 1 ? '' : 's'} found in your latest ${data.sampleSize} games in ${queueNames[data.queue]}. These stats cover this recent sample, not your lifetime champion history.`;
+  $('sample').textContent = `${matches.length} ${data.name} game${matches.length === 1 ? '' : 's'} found in your ${data.sampleSize} saved games in ${queueNames[data.queue]}. Stats cover imported history; more games appear as background sync progresses.`;
   $('win-rate').textContent = matches.length ? `${Math.round(wins / matches.length * 100)}%` : '—';
   const losses = matches.length - wins;
   $('record').textContent = `${wins} win${wins === 1 ? '' : 's'} · ${losses} loss${losses === 1 ? '' : 'es'}`;
   $('kda').textContent = matches.length ? ['kills', 'deaths', 'assists'].map(k => (matches.reduce((n, m) => n + m[k], 0) / matches.length).toFixed(1)).join(' / ') : '—';
   const seconds = matches.reduce((n, m) => n + m.duration, 0);
   $('cs').textContent = seconds ? (matches.reduce((n, m) => n + m.cs, 0) / (seconds / 60)).toFixed(1) : '—';
-  $('updated').textContent = `Updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · Cached for 2 minutes`;
+  $('updated').textContent = `Profile updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · History updates automatically`;
   $('matches').replaceChildren();
   const queues = {420: 'Ranked Solo / Duo', 440: 'Ranked Flex', 450: 'ARAM', 400: 'Normal Draft', 490: 'Quickplay', 1700: 'Arena'};
   for (const match of matches) {

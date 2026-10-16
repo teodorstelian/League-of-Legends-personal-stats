@@ -1,6 +1,8 @@
 import asyncio
 import os
 import time
+import sqlite3
+from contextlib import suppress
 from contextlib import asynccontextmanager
 from typing import Literal
 from pathlib import Path
@@ -11,10 +13,89 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from . import storage
 
 ROOT = Path(__file__).resolve().parent.parent
 cache = {}
 lock = asyncio.Lock()
+request_lock = asyncio.Lock()
+next_request = 0
+sync_status = {'status': 'starting', 'message': ''}
+
+
+def configuration():
+    load_dotenv(ROOT / '.env', override=True)
+    return os.getenv('RIOT_API_KEY', '').strip(), os.getenv('RIOT_ID', 'Bagabondu#1909').strip()
+
+
+async def sync_worker(client):
+    last_recent = {}
+    last_profile = {}
+    reset_recent = set()
+    while True:
+        key, player = configuration()
+        state = storage.state(player)
+        if player not in reset_recent:
+            state['recent_offset'] = 0
+            storage.save_state(player, state)
+            reset_recent.add(player)
+        try:
+            if not key or state['paused']:
+                sync_status.update(status='paused' if state['paused'] else 'setup', message='Sync paused.' if state['paused'] else 'Add your Riot API key.')
+                await asyncio.sleep(2)
+                continue
+            saved = storage.matches(player)
+            if time.monotonic() - last_profile.get(player, 0) > 300:
+                profile = await dashboard(client, key, player)
+                storage.profile(player, profile)
+                last_profile[player] = time.monotonic()
+            backfill = len(saved) < state['target'] and not state['exhausted']
+            recent = time.monotonic() - last_recent.get(player, 0) > 300
+            if not backfill and not recent:
+                sync_status.update(status='idle', message='Up to date. Checking for new games every 5 minutes.')
+                await asyncio.sleep(2)
+                continue
+            sync_status.update(status='syncing', message='Checking new games…' if recent else 'Importing older games…')
+            name, tag = player.rsplit('#', 1)
+            base = 'https://europe.api.riotgames.com'
+            account = await fetch(client, f'{base}/riot/account/v1/accounts/by-riot-id/{quote(name, safe="")}/{quote(tag, safe="")}', key)
+            puuid = quote(account['puuid'], safe='')
+            # A fixed end timestamp keeps pagination stable as new games arrive.
+            state.setdefault('end', int(time.time()))
+            offset = state.get('recent_offset', 0) if recent else state['offset']
+            suffix = '' if recent else f'&endTime={state["end"]}'
+            ids = await fetch(client, f'{base}/lol/match/v5/matches/by-puuid/{puuid}/ids?start={offset}&count=20{suffix}', key)
+            known = {m['id'] for m in saved}
+            completed = True
+            for match_id in ids:
+                if storage.state(player)['paused']:
+                    completed = False
+                    break
+                if match_id not in known:
+                    raw = await fetch(client, f'{base}/lol/match/v5/matches/{quote(match_id, safe="")}', key)
+                    summary = match_summary(raw, account['puuid'])
+                    if summary:
+                        storage.save_match(player, summary)
+            if completed:
+                # Preserve controls changed while network requests were in progress.
+                current = storage.state(player)
+                current.setdefault('end', state['end'])
+                if recent:
+                    if not saved or not ids or any(mid in known for mid in ids) or len(ids) < 20:
+                        last_recent[player] = time.monotonic()
+                        current['recent_offset'] = 0
+                    else:
+                        current['recent_offset'] = offset + len(ids)
+                else:
+                    current['offset'] = offset + len(ids)
+                    current['exhausted'] = len(ids) < 20
+                storage.save_state(player, current)
+        except RiotError as exc:
+            sync_status.update(status='waiting', message=exc.message)
+            await asyncio.sleep(30)
+        except (ValueError, KeyError, TypeError, sqlite3.Error):
+            sync_status.update(status='error', message='Unable to sync history. Check configuration and try resuming.')
+            await asyncio.sleep(30)
 
 
 class RiotError(Exception):
@@ -26,7 +107,13 @@ class RiotError(Exception):
 async def lifespan(app):
     async with httpx.AsyncClient(timeout=15) as client:
         app.state.client = client
-        yield
+        task = asyncio.create_task(sync_worker(client))
+        try:
+            yield
+        finally:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
 
 app = FastAPI(title="Rift Journal", lifespan=lifespan)
@@ -44,6 +131,17 @@ async def champion_page(champion_id: int):
 
 
 async def fetch(client, url, key=None):
+    global next_request
+    if key:
+        async with request_lock:
+            await asyncio.sleep(max(0, next_request - time.monotonic()))
+            next_request = time.monotonic() + 1.3
+            return await fetch_response(client, url, key)
+    return await fetch_response(client, url)
+
+
+async def fetch_response(client, url, key=None):
+    global next_request
     try:
         response = await client.get(url, headers={'X-Riot-Token': key} if key else {})
     except httpx.RequestError:
@@ -54,6 +152,10 @@ async def fetch(client, url, key=None):
         raise RiotError('Player or game data was not found. Check your Riot ID and EUNE account.', 404)
     if response.status_code == 429:
         retry = response.headers.get('Retry-After', 'a few')
+        try:
+            next_request = max(next_request, time.monotonic() + max(1, float(retry)))
+        except ValueError:
+            next_request = max(next_request, time.monotonic() + 120)
         raise RiotError(f'Riot rate limit reached. Try again in {retry} seconds.', 429)
     if not response.is_success:
         raise RiotError('Riot is temporarily unavailable. Please try again later.')
@@ -103,19 +205,7 @@ async def dashboard(client, key, riot_id, queue='all'):
                            'losses': entry['losses'] if entry else 0})
     except RiotError as exc:
         rank_warning = exc.message
-    queue_query = f'&queue={QUEUES[queue]}' if QUEUES[queue] else ''
-    ids = await fetch(client, f'{regional}/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=10{queue_query}', key)
-    # Sequential match calls avoid a burst against the development key's short rate window.
-    matches, warning = [], None
-    for match_id in ids:
-        try:
-            match = await fetch(client, f'{regional}/lol/match/v5/matches/{quote(match_id, safe="")}', key)
-            summary = match_summary(match, account['puuid'])
-            if summary:
-                matches.append(summary)
-        except RiotError as exc:
-            warning = exc.message
-            break
+    matches, warning = storage.matches(riot_id, QUEUES[queue]), None
     now = time.monotonic()
     if 'champions' not in cache or cache['champions'][0] < now:
         versions = await fetch(client, 'https://ddragon.leagueoflegends.com/api/versions.json')
@@ -153,13 +243,19 @@ async def get_dashboard(queue: Literal['all', 'solo', 'flex', 'aram'] = 'all'):
     async with lock:
         cache_key = ('dashboard', queue)
         cached = cache.get(cache_key)
-        if cached and cached[0] > time.monotonic() and cached[1:3] == (key, riot_id):
-            return cached[3]
+        saved_profile = storage.profile(riot_id)
+        if saved_profile or (cached and cached[0] > time.monotonic() and cached[1:3] == (key, riot_id)):
+            data = dict(saved_profile or cached[3])
+            data['queue'] = queue
+            catalog = {c['championId']: c for c in data['champions']}
+            data['matches'] = [{**m, **{k: v for k, v in catalog.get(m['championId'], {}).items() if k in ('name', 'icon')}} for m in storage.matches(riot_id, QUEUES[queue])]
+            return data
         try:
             data = await dashboard(app.state.client, key, riot_id, queue)
         except RiotError as exc:
             return JSONResponse({'message': exc.message}, status_code=exc.status)
         cache[cache_key] = (time.monotonic() + 120, key, riot_id, data)
+        storage.profile(riot_id, data)
         return data
 
 
@@ -177,3 +273,22 @@ async def get_champion(champion_id: int, queue: Literal['all', 'solo', 'flex', '
             'matches': [m for m in data['matches'] if m['championId'] == champion_id],
             'sampleSize': len(data['matches']), 'warning': data['warning'],
             'updatedAt': data['updatedAt']}
+
+
+@app.get('/api/sync')
+async def get_sync():
+    _, player = configuration()
+    saved = storage.matches(player)
+    return {**storage.state(player), **sync_status, 'saved': len(saved),
+            'oldest': saved[-1]['playedAt'] if saved else None}
+
+
+@app.post('/api/sync/{action}')
+async def control_sync(action: Literal['pause', 'resume', 'more']):
+    _, player = configuration()
+    state = storage.state(player)
+    if action == 'more':
+        state['target'] = max(state['target'], len(storage.matches(player))) + 100
+    state['paused'] = action == 'pause'
+    storage.save_state(player, state)
+    return await get_sync()

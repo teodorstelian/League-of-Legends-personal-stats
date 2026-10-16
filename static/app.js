@@ -31,7 +31,7 @@ function renderChampions() {
 }
 function render() {
   $('queue').value = data.queue;
-  const context = `Last ${data.matches.length} games · ${queueNames[data.queue]}`;
+  const context = `${data.matches.length} saved games · ${queueNames[data.queue]}`;
   $('queue-context').textContent = context;
   $('match-context').textContent = context;
   $('ranked').replaceChildren();
@@ -58,7 +58,7 @@ function render() {
   $('kda').textContent = matches.length ? ['kills', 'deaths', 'assists'].map(k => (matches.reduce((n, m) => n + m[k], 0) / matches.length).toFixed(1)).join(' / ') : '—';
   $('total-mastery').textContent = number(data.mastery.reduce((n, c) => n + c.points, 0));
   $('champion-count').textContent = `${data.mastery.length} champions played`;
-  $('updated').textContent = `Updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} · Cached for 2 minutes`;
+  $('updated').textContent = `Profile updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} · History updates automatically`;
   renderChampions(); $('matches').replaceChildren();
   const queues = {420: 'Ranked Solo / Duo', 440: 'Ranked Flex', 450: 'ARAM', 400: 'Normal Draft', 490: 'Quickplay', 1700: 'Arena'};
   for (const match of matches) {

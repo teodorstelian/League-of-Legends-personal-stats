@@ -1,6 +1,16 @@
 import httpx
+import asyncio
+import pytest
 from fastapi.testclient import TestClient
-from app.main import app, cache, match_summary
+from app.main import app, cache, match_summary, sync_worker
+
+
+@pytest.fixture(autouse=True)
+def isolated_storage(tmp_path, monkeypatch):
+    monkeypatch.setattr('app.storage.DB', tmp_path / 'test.sqlite3')
+    async def idle(client):
+        await asyncio.Event().wait()
+    monkeypatch.setattr('app.main.sync_worker', idle)
 
 
 def test_missing_key(monkeypatch):
@@ -53,7 +63,7 @@ def test_dashboard_routing_and_cache(monkeypatch):
         assert len(calls) == count
         solo = client.get('/api/dashboard?queue=solo')
         assert solo.json()['queue'] == 'solo'
-        assert any('queue=420' in url for url in calls)
+        assert solo.json()['matches'] == []
         count = len(calls)
         assert client.get('/api/dashboard?queue=solo').json() == solo.json()
         assert len(calls) == count
@@ -106,3 +116,76 @@ def test_champion_pages_filter_matches_and_handle_unplayed(monkeypatch):
         assert client.get('/api/champions/2').json()['mastery'] == {'points': 0, 'level': 0}
         assert client.get('/api/champions/9999').status_code == 404
         assert client.get('/api/champions/1?queue=invalid').status_code == 422
+
+
+def test_storage_and_sync_controls():
+    from app import storage
+    player = 'Bagabondu#1909'
+    match = {'id': 'EU_1', 'playedAt': 100, 'queue': 420}
+    storage.save_match(player, match)
+    storage.save_match(player, match)
+    assert len(storage.matches(player)) == 1
+    assert storage.matches(player, 450) == []
+    assert storage.matches('other') == []
+    with TestClient(app) as client:
+        assert client.post('/api/sync/pause').json()['paused'] is True
+        assert client.post('/api/sync/resume').json()['paused'] is False
+        assert client.post('/api/sync/more').json()['target'] == 200
+        assert client.get('/api/sync').json()['saved'] == 1
+
+
+def test_worker_checkpoint_and_restart(monkeypatch):
+    from app import storage
+    monkeypatch.setattr('app.main.configuration', lambda: ('test-key', 'Test#EU'))
+    async def profile(*args):
+        return {'champions': []}
+    monkeypatch.setattr('app.main.dashboard', profile)
+    offsets = []
+    async def fake_fetch(client, url, key):
+        if '/by-riot-id/' in url:
+            return {'puuid': 'me'}
+        if '/ids?' in url:
+            from urllib.parse import urlparse, parse_qs
+            query = parse_qs(urlparse(url).query)
+            offset = int(query['start'][0])
+            if 'endTime' in query:
+                offsets.append(offset)
+            if offset == 20:
+                raise asyncio.CancelledError()
+            return [f'EU_{i}' for i in range(20)]
+        match_id = url.rsplit('/', 1)[1]
+        return {'metadata': {'matchId': match_id}, 'info': {'gameStartTimestamp': 100,
+                'participants': [{'puuid': 'me', 'championId': 1, 'championName': 'Annie',
+                'win': True, 'kills': 1, 'deaths': 2, 'assists': 3}]}}
+    monkeypatch.setattr('app.main.fetch', fake_fetch)
+    async def run():
+        with pytest.raises(asyncio.CancelledError):
+            await sync_worker(None)
+    asyncio.run(run())
+    assert len(storage.matches('Test#EU')) == 20
+    assert storage.state('Test#EU')['offset'] == 20
+    boundary = storage.state('Test#EU')['end']
+    offsets.clear()
+    asyncio.run(run())
+    assert offsets == [20]
+    assert len(storage.matches('Test#EU')) == 20
+    assert storage.state('Test#EU')['end'] == boundary
+
+
+def test_saved_profile_serves_history_without_network(monkeypatch):
+    from app import storage
+    monkeypatch.setattr('app.main.configuration', lambda: ('unused', 'Test#EU'))
+    monkeypatch.setattr('app.main.load_dotenv', lambda *args, **kwargs: None)
+    monkeypatch.setenv('RIOT_API_KEY', 'unused')
+    monkeypatch.setenv('RIOT_ID', 'Test#EU')
+    storage.profile('Test#EU', {'queue': 'all', 'champions': [{'championId': 1, 'name': 'Annie', 'icon': 'icon'}]})
+    storage.save_match('Test#EU', {'id': 'one', 'playedAt': 100, 'queue': 420, 'championId': 1})
+    storage.save_match('Test#EU', {'id': 'two', 'playedAt': 200, 'queue': 450, 'championId': 1})
+    async def no_network(*args, **kwargs):
+        pytest.fail('Saved history should not wait for Riot')
+    monkeypatch.setattr('app.main.fetch', no_network)
+    with TestClient(app) as client:
+        body = client.get('/api/dashboard?queue=solo').json()
+    assert body['queue'] == 'solo'
+    assert len(body['matches']) == 1
+    assert body['matches'][0]['name'] == 'Annie'
