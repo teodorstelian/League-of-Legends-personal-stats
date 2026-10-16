@@ -57,6 +57,8 @@ def matches(player, queue=None):
             match.setdefault('role', own.get('teamPosition') or 'UNKNOWN')
             match['items'] = [own.get(f'item{i}', 0) for i in range(7)]
             match['itemPatch'] = '.'.join(detail['raw']['info'].get('gameVersion', '').split('.')[:2])
+            match['damage'] = own.get('totalDamageDealtToChampions')
+            match['vision'] = own.get('visionScore')
         if eligible_summary(match):
             result.append(match)
     return [m for m in result if queue is None or m['queue'] == queue]

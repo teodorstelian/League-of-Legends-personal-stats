@@ -256,3 +256,18 @@ def test_tier_list_last_30_days_filters_before_averaging(monkeypatch):
         assert recent['roles'][2]['tiers'][1]['champions'][0]['scoreStats']['average'] == 70
         assert client.get('/api/tier-list?minimum=1').json()['totalGames'] == 3
         assert client.get('/api/tier-list?period=invalid').status_code == 422
+
+
+def test_trends_page_filters_and_validation(monkeypatch):
+    import time
+    async def fake_dashboard(queue):
+        return {'queue':queue,'champions':[{'championId':1,'name':'Annie'}],
+                'matches':[{'championId':1,'role':'TOP','score':70,'playedAt':int(time.time()*1000),'win':True}]}
+    monkeypatch.setattr('app.main.get_dashboard',fake_dashboard)
+    with TestClient(app) as client:
+        assert client.get('/trends').status_code == 200
+        body=client.get('/api/trends?queue=flex&role=TOP&champion=1').json()
+        assert body['queue']=='flex' and body['current']['score']['value']==70
+        assert client.get('/api/trends?role=UTILITY').json()['current']['total']==0
+        assert client.get('/api/trends?champion=-1').status_code==422
+        assert client.get('/api/trends?queue=aram').status_code==422

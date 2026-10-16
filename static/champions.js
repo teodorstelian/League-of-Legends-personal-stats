@@ -1,5 +1,23 @@
 const $ = id => document.getElementById(id);
 let data, displayedQueue = 'all';
+const columns = [
+  ['name','Champion', 'Champion name'], ['score','Avg Rift Score','Average Rift Score'],
+  ['samples','Scored / saved','Scored games, then saved games'], ['winRate','Win rate','Win rate'],
+  ['record','W / L','Wins, then fewer losses'], ['kda','Avg K / D / A','KDA ratio: (kills + assists) / max(1, deaths)'],
+  ['mastery','Mastery points','Mastery points']
+];
+const sortSelect = $('sort'); sortSelect.replaceChildren();
+for (const [key,label] of [...columns,['games','Games played']]) for(const direction of ['desc','asc']) {
+  const option=document.createElement('option');option.value=`${key}-${direction}`;option.textContent=`${label}: ${direction==='asc'?'ascending':'descending'}`;sortSelect.append(option);
+}
+sortSelect.value='score-desc';
+document.querySelectorAll('.champion-directory thead th').forEach((th,index)=>{
+  const [key,label,description]=columns[index];
+  const button=document.createElement('button');button.className='table-sort';button.type='button';button.dataset.column=key;button.title=`Sort by ${description}`;button.textContent=label;
+  button.addEventListener('click',()=>{
+    const [active,direction]=sortSelect.value.split('-');sortSelect.value=`${key}-${active===key?(direction==='asc'?'desc':'asc'):key==='name'?'asc':'desc'}`;render();
+  });th.replaceChildren(button);
+});
 function node(tag, text, className) { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (className) n.className = className; return n; }
 function render() {
   if (!data) return;
@@ -11,18 +29,30 @@ function render() {
     const games = groups.get(c.championId) || [], wins = games.filter(m => m.win).length;
     return {...c, games, wins, winRate: games.length ? wins / games.length * 100 : null, points: mastery.get(c.championId) || 0};
   }).filter(c => c.name.toLocaleLowerCase().includes(query) && (!$('played').checked || c.games.length) && c.scoreStats.scored >= Number($('minimum').value));
-  const sort = $('sort').value;
+  const [sort,direction] = $('sort').value.split('-');
+  const multiplier=direction==='asc'?1:-1;
+  const value=c=>{
+    if(sort==='name')return c.name;
+    if(sort==='score')return c.scoreStats.average;
+    if(sort==='samples')return c.scoreStats.scored;
+    if(sort==='games')return c.games.length;
+    if(sort==='winRate')return c.winRate;
+    if(sort==='record')return c.games.length?c.wins:null;
+    if(sort==='mastery')return c.points;
+    if(sort==='kda')return c.games.length?c.games.reduce((n,m)=>n+m.kills+m.assists,0)/Math.max(1,c.games.reduce((n,m)=>n+m.deaths,0)):null;
+  };
   rows.sort((a,b) => {
-    let difference = 0;
-    if (sort.startsWith('score')) {
-      if (a.scoreStats.average === null || b.scoreStats.average === null) return a.scoreStats.average === b.scoreStats.average ? a.name.localeCompare(b.name) : a.scoreStats.average === null ? 1 : -1;
-      difference = (a.scoreStats.average - b.scoreStats.average) * (sort === 'score-asc' ? 1 : -1);
-    } else if (sort === 'games') difference = b.games.length - a.games.length;
-    else if (sort === 'wins') difference = (b.winRate ?? -1) - (a.winRate ?? -1);
-    else if (sort === 'mastery') difference = b.points - a.points;
-    return difference || b.scoreStats.scored - a.scoreStats.scored || a.name.localeCompare(b.name);
+    const av=value(a),bv=value(b);
+    if(av===null||bv===null)return av===bv?a.name.localeCompare(b.name):av===null?1:-1;
+    const difference=typeof av==='string'?av.localeCompare(bv):av-bv;
+    const tie=sort==='samples'?a.games.length-b.games.length:sort==='record'?(b.games.length-b.wins)-(a.games.length-a.wins):0;
+    return multiplier*(difference||tie)||a.name.localeCompare(b.name);
   });
-  if (sort === 'name') rows.sort((a,b) => a.name.localeCompare(b.name));
+  document.querySelectorAll('.table-sort').forEach(button=>{
+    const active=button.dataset.column===sort;
+    button.parentElement.setAttribute('aria-sort',active?(direction==='asc'?'ascending':'descending'):'none');
+    const label=columns.find(c=>c[0]===button.dataset.column)[1];button.textContent=`${label} ${active?(direction==='asc'?'↑':'↓'):'↕'}`;
+  });
   $('count').textContent = `${rows.length} of ${data.champions.length} champions · ${data.matches.length} saved games · ${displayedQueue === 'all' ? 'All ranked' : displayedQueue === 'solo' ? 'Solo / Duo' : 'Flex'}`;
   $('champion-rows').replaceChildren();
   for (const c of rows) {

@@ -17,6 +17,7 @@ from . import storage
 from .scoring import score_player
 from .statistics import enrich_dashboard, score_average, lane_averages, champion_tiers
 from .history_policy import eligible_info
+from .trends import performance_trends
 
 ROOT = Path(__file__).resolve().parent.parent
 cache = {}
@@ -147,6 +148,19 @@ async def champions_page():
 @app.get('/tier-list')
 async def tier_list_page():
     return FileResponse(ROOT / 'static/tier-list.html')
+
+
+@app.get('/trends')
+async def trends_page():
+    return FileResponse(ROOT / 'static/trends.html')
+
+
+@app.get('/api/trends')
+async def get_trends(queue: Literal['all', 'solo', 'flex'] = 'all', role: Literal['all', 'TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'] = 'all', champion: int = Query(default=0, ge=0)):
+    data = await get_dashboard(queue)
+    if isinstance(data, JSONResponse):
+        return data
+    return performance_trends(data, time.time(), role, champion)
 
 
 @app.get('/api/tier-list')
