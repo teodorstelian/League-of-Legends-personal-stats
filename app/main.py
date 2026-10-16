@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from . import storage
+from .scoring import score_player
 
 ROOT = Path(__file__).resolve().parent.parent
 cache = {}
@@ -51,11 +52,15 @@ async def sync_worker(client):
                 last_profile[player] = time.monotonic()
             backfill = len(saved) < state['target'] and not state['exhausted']
             recent = time.monotonic() - last_recent.get(player, 0) > 300
-            if not backfill and not recent:
+            pending = storage.pending(player) if not backfill and not recent else []
+            hydrate = bool(pending)
+            if not backfill and not recent and not hydrate:
                 sync_status.update(status='idle', message='Up to date. Checking for new games every 5 minutes.')
                 await asyncio.sleep(2)
                 continue
             sync_status.update(status='syncing', message='Checking new games…' if recent else 'Importing older games…')
+            if hydrate:
+                sync_status['message'] = 'Adding advanced details to saved matches…'
             name, tag = player.rsplit('#', 1)
             base = 'https://europe.api.riotgames.com'
             account = await fetch(client, f'{base}/riot/account/v1/accounts/by-riot-id/{quote(name, safe="")}/{quote(tag, safe="")}', key)
@@ -64,18 +69,19 @@ async def sync_worker(client):
             state.setdefault('end', int(time.time()))
             offset = state.get('recent_offset', 0) if recent else state['offset']
             suffix = '' if recent else f'&endTime={state["end"]}'
-            ids = await fetch(client, f'{base}/lol/match/v5/matches/by-puuid/{puuid}/ids?start={offset}&count=20{suffix}', key)
+            ids = pending if hydrate else await fetch(client, f'{base}/lol/match/v5/matches/by-puuid/{puuid}/ids?start={offset}&count=20{suffix}', key)
             known = {m['id'] for m in saved}
             completed = True
             for match_id in ids:
                 if storage.state(player)['paused']:
                     completed = False
                     break
-                if match_id not in known:
+                if match_id not in known or storage.detail(player, match_id) is None:
                     raw = await fetch(client, f'{base}/lol/match/v5/matches/{quote(match_id, safe="")}', key)
                     summary = match_summary(raw, account['puuid'])
                     if summary:
                         storage.save_match(player, summary)
+                        storage.detail(player, match_id, {'raw': raw, 'puuid': account['puuid']})
             if completed:
                 # Preserve controls changed while network requests were in progress.
                 current = storage.state(player)
@@ -86,7 +92,7 @@ async def sync_worker(client):
                         current['recent_offset'] = 0
                     else:
                         current['recent_offset'] = offset + len(ids)
-                else:
+                elif not hydrate:
                     current['offset'] = offset + len(ids)
                     current['exhausted'] = len(ids) < 20
                 storage.save_state(player, current)
@@ -178,6 +184,7 @@ def match_summary(match, puuid):
         'cs': player.get('totalMinionsKilled', 0) + player.get('neutralMinionsKilled', 0),
         'duration': duration, 'mode': info.get('gameMode', 'Unknown'),
         'queue': info.get('queueId'), 'playedAt': info.get('gameStartTimestamp', 0),
+        'score': score_player(info, player)['value'],
     }
 
 
@@ -280,6 +287,7 @@ async def get_sync():
     _, player = configuration()
     saved = storage.matches(player)
     return {**storage.state(player), **sync_status, 'saved': len(saved),
+            'details': len(saved) - len(storage.pending(player, max(1, len(saved)))),
             'oldest': saved[-1]['playedAt'] if saved else None}
 
 
@@ -292,3 +300,86 @@ async def control_sync(action: Literal['pause', 'resume', 'more']):
     state['paused'] = action == 'pause'
     storage.save_state(player, state)
     return await get_sync()
+
+
+@app.get('/matches/{match_id}')
+async def match_page(match_id: str):
+    return FileResponse(ROOT / 'static/match.html')
+
+
+@app.get('/api/matches/{match_id}')
+async def get_match(match_id: str):
+    key, player = configuration()
+    # Only fetch games already associated with the configured player.
+    if not any(m['id'] == match_id for m in storage.matches(player)):
+        return JSONResponse({'message': 'Match not found in your saved history.'}, status_code=404)
+    stored = storage.detail(player, match_id)
+    try:
+        if stored is None:
+            if not key:
+                raise RiotError('Add your API key to load advanced details for this game.', 503)
+            name, tag = player.rsplit('#', 1)
+            account = await fetch(app.state.client, f'https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{quote(name, safe="")}/{quote(tag, safe="")}', key)
+            raw = await fetch(app.state.client, f'https://europe.api.riotgames.com/lol/match/v5/matches/{quote(match_id, safe="")}', key)
+            summary = match_summary(raw, account['puuid'])
+            if summary is None:
+                raise RiotError('This player was not found in the match.', 404)
+            storage.save_match(player, summary)
+            stored = storage.detail(player, match_id, {'raw': raw, 'puuid': account['puuid']})
+        return await build_match_details(stored)
+    except RiotError as exc:
+        return JSONResponse({'message': exc.message}, status_code=exc.status)
+
+
+async def build_match_details(stored):
+    raw, puuid = stored['raw'], stored['puuid']
+    info = raw['info']
+    patch = '.'.join(info.get('gameVersion', '').split('.')[:2])
+    asset_key = ('assets', patch)
+    warning = None
+    if asset_key not in cache:
+        try:
+            versions = await fetch(app.state.client, 'https://ddragon.leagueoflegends.com/api/versions.json')
+            version = next((v for v in versions if v.startswith(patch + '.')), versions[0]) if patch else versions[0]
+            base = f'https://ddragon.leagueoflegends.com/cdn/{version}'
+            items = await fetch(app.state.client, f'{base}/data/en_US/item.json')
+            spells = await fetch(app.state.client, f'{base}/data/en_US/summoner.json')
+            runes = await fetch(app.state.client, f'{base}/data/en_US/runesReforged.json')
+            cache[asset_key] = (base, items['data'], {int(v['key']): v for v in spells['data'].values()},
+                                {r['id']: r for tree in runes for slot in tree['slots'] for r in slot['runes']})
+        except RiotError:
+            warning = 'Some item, spell, or rune labels could not be loaded. Raw IDs remain available.'
+    base, items, spells, runes = cache.get(asset_key, ('', {}, {}, {}))
+    profile = storage.profile(configuration()[1]) or {}
+    champions = {c['championId']: c for c in profile.get('champions', [])}
+    def asset(value, catalog, kind):
+        entry = catalog.get(str(value), catalog.get(value, {}))
+        icon = entry.get('icon') if kind == 'rune' else (f'{base}/img/{kind}/{entry["image"]["full"]}' if entry and base else None)
+        if kind == 'rune' and icon:
+            icon = f'https://ddragon.leagueoflegends.com/cdn/img/{icon}'
+        return {'id': value, 'name': entry.get('name', f'{kind.title()} {value}'), 'icon': icon}
+    participants = []
+    fields = ['kills', 'deaths', 'assists', 'champLevel', 'goldEarned', 'totalDamageDealtToChampions',
+              'physicalDamageDealtToChampions', 'magicDamageDealtToChampions', 'trueDamageDealtToChampions',
+              'totalDamageTaken', 'damageSelfMitigated', 'visionScore', 'wardsPlaced', 'wardsKilled',
+              'detectorWardsPlaced', 'damageDealtToObjectives', 'damageDealtToTurrets', 'turretTakedowns',
+              'totalHealsOnTeammates', 'totalDamageShieldedOnTeammates', 'timeCCingOthers', 'totalTimeSpentDead']
+    for p in info['participants']:
+        champion = champions.get(p['championId'], {})
+        perks = p.get('perks', {})
+        team_kills = sum(q.get('kills', 0) for q in info['participants'] if q['teamId'] == p['teamId'])
+        participants.append({**{f: p.get(f) for f in fields}, 'championId': p['championId'],
+            'name': champion.get('name', p['championName']), 'icon': champion.get('icon'),
+            'riotId': '#'.join(filter(None, [p.get('riotIdGameName') or p.get('summonerName') or p['championName'], p.get('riotIdTagline')])),
+            'you': p.get('puuid') == puuid, 'teamId': p['teamId'], 'win': p.get('win'),
+            'role': p.get('teamPosition') or 'Unknown',
+            'cs': p.get('totalMinionsKilled', 0) + p.get('neutralMinionsKilled', 0),
+            'kp': round((p.get('kills', 0) + p.get('assists', 0)) / team_kills * 100, 1) if team_kills else 0,
+            'items': [asset(p.get(f'item{i}', 0), items, 'item') if p.get(f'item{i}') else None for i in range(7)],
+            'spells': [asset(p.get(f'summoner{i}Id', 0), spells, 'spell') for i in (1, 2)],
+            'runes': [asset(s['perk'], runes, 'rune') for style in perks.get('styles', []) for s in style.get('selections', [])],
+            'statShards': perks.get('statPerks', {}), 'score': score_player(info, p)})
+    return {'id': raw['metadata']['matchId'], 'mode': info.get('gameMode'), 'queue': info.get('queueId'),
+            'duration': info.get('gameDuration', 0), 'playedAt': info.get('gameStartTimestamp', 0),
+            'patch': info.get('gameVersion'), 'participants': participants,
+            'teams': info.get('teams', []), 'warning': warning}

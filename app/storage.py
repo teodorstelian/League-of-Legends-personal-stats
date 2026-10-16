@@ -11,6 +11,7 @@ def connect():
     db.execute('CREATE TABLE IF NOT EXISTS matches (player TEXT, id TEXT, played INTEGER, body TEXT, PRIMARY KEY(player,id))')
     db.execute('CREATE TABLE IF NOT EXISTS state (player TEXT PRIMARY KEY, body TEXT)')
     db.execute('CREATE TABLE IF NOT EXISTS profiles (player TEXT PRIMARY KEY, body TEXT)')
+    db.execute('CREATE TABLE IF NOT EXISTS details (player TEXT, id TEXT, body TEXT, PRIMARY KEY(player,id))')
     return db
 
 
@@ -44,3 +45,17 @@ def matches(player, queue=None):
         rows = db.execute('SELECT body FROM matches WHERE player=? ORDER BY played DESC,id', (player,)).fetchall()
     result = [json.loads(row[0]) for row in rows]
     return [m for m in result if queue is None or m['queue'] == queue]
+
+
+def detail(player, match_id, value=None):
+    with connect() as db:
+        if value is not None:
+            db.execute('INSERT OR REPLACE INTO details VALUES (?,?,?)', (player, match_id, json.dumps(value)))
+            return value
+        row = db.execute('SELECT body FROM details WHERE player=? AND id=?', (player, match_id)).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def pending(player, limit=20):
+    with connect() as db:
+        return [r[0] for r in db.execute('SELECT m.id FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id WHERE m.player=? AND d.id IS NULL ORDER BY m.played DESC LIMIT ?', (player, limit))]

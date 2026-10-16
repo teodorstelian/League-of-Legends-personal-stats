@@ -36,6 +36,14 @@ On a fresh clone, copy `.env.example` to `.env` first. The key is only sent from
 - Account and match requests use Europe routing; mastery and summoner requests use EUN1. Champion assets use the latest Data Dragon catalog cached for six hours.
 - This version is a single-user local app. Keep it bound to localhost.
 
+## Match analysis and Rift Score v1
+
+Click any saved match to open both team scoreboards and inspect each player's final items, spells, runes, damage, economy, vision, objective pressure, healing, shielding, CC, and time dead. Full match responses are saved locally. The worker fills in details for previously saved summaries; opening a match can fetch missing details immediately. Item/spell/rune labels use the match's patch where Data Dragon provides it; unknown assets fall back to IDs with a warning.
+
+Rift Score is a custom within-match heuristic from 0 to 100. Classic weights: champion damage 20%, kill participation 20%, survival 15%, gold 15%, vision 15%, objective damage 15%. For supports, damage impact includes ally healing and shielding. Each component compares the player to the opposing player in the same Riot-assigned role; when a unique same-role opponent is unavailable, it uses the opposing team's average. ARAM uses the team average and excludes vision/objectives.
+
+For each metric: `100 * own / (own + comparison)`, inverted for deaths; both zero gives 50. Available component weights are normalized to sum to 100. Missing metrics are omitted. Short games under five minutes, early-surrender/remake flags, and unsupported game modes are not scored. Winning adds no bonus. A score of 50 means equal measured contributions to the comparison, not a population average, official Riot grade, or rank estimate. Positioning, matchup difficulty, and unrecorded utility are not measured. The formula and component values are visible on each match page.
+
 ## Tests
 
 ```powershell

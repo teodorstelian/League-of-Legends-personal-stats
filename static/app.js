@@ -62,12 +62,14 @@ function render() {
   renderChampions(); $('matches').replaceChildren();
   const queues = {420: 'Ranked Solo / Duo', 440: 'Ranked Flex', 450: 'ARAM', 400: 'Normal Draft', 490: 'Quickplay', 1700: 'Arena'};
   for (const match of matches) {
-    const row = element('article', undefined, `match ${match.win ? 'win' : 'loss'}`);
+    const row = element('a', undefined, `match ${match.win ? 'win' : 'loss'}`);
+    row.href = `/matches/${encodeURIComponent(match.id)}`;
     const champion = element('div'); champion.append(element('strong', match.name), element('small', queues[match.queue] || match.mode));
     const score = element('div', `${match.kills} / ${match.deaths} / ${match.assists}`, 'score'); score.append(element('small', `${number(match.cs)} CS`));
     const duration = element('div', `${Math.floor(match.duration / 60)}m ${match.duration % 60}s`, 'match-time');
     duration.append(element('small', new Date(match.playedAt).toLocaleDateString([], {month: 'short', day: 'numeric'})));
     row.append(element('span', match.win ? 'VICTORY' : 'DEFEAT', 'result'), match.icon ? icon(match.icon, match.name) : element('span'), champion, score, duration);
+    row.append(element('span', match.score === undefined || match.score === null ? 'View analysis →' : `Rift Score ${match.score} / 100 →`, 'match-analysis'));
     $('matches').append(row);
   }
   if (!matches.length) $('matches').append(element('p', 'No recent matches available.', 'muted'));

@@ -189,3 +189,33 @@ def test_saved_profile_serves_history_without_network(monkeypatch):
     assert body['queue'] == 'solo'
     assert len(body['matches']) == 1
     assert body['matches'][0]['name'] == 'Annie'
+
+
+def test_match_details_use_saved_data_and_reject_unknown_matches(monkeypatch):
+    from app import storage
+    from test_scoring import game
+    monkeypatch.setattr('app.main.configuration', lambda: ('', 'Test#EU'))
+    info = game()
+    raw = {'metadata': {'matchId': 'EU_1'}, 'info': info}
+    storage.save_match('Test#EU', match_summary(raw, 'p0'))
+    storage.detail('Test#EU', 'EU_1', {'raw': raw, 'puuid': 'p0'})
+    cache[('assets', '16.20')] = ('https://ddragon.leagueoflegends.com/cdn/16.20.1',
+        {'1001': {'name': 'Boots', 'image': {'full': '1001.png'}}},
+        {4: {'name': 'Flash', 'image': {'full': 'SummonerFlash.png'}}},
+        {8005: {'name': 'Press the Attack', 'icon': 'perk-images/Styles/Precision/PressTheAttack/PressTheAttack.png'}})
+    async def no_network(*args, **kwargs):
+        pytest.fail('Cached details should not require a key or Riot request')
+    monkeypatch.setattr('app.main.fetch', no_network)
+    with TestClient(app) as client:
+        assert client.get('/matches/EU_1').status_code == 200
+        assert client.get('/api/matches/unknown').status_code == 404
+        response = client.get('/api/matches/EU_1')
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body['participants']) == 10
+    own = next(p for p in body['participants'] if p['you'])
+    assert own['score']['value'] == 50
+    assert own['items'][0]['name'] == 'Boots'
+    assert own['spells'][0]['name'] == 'Flash'
+    assert own['runes'][0]['name'] == 'Press the Attack'
+    assert 'puuid' not in response.text
