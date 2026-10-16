@@ -2,7 +2,7 @@ from app.scoring import score_player
 
 
 def game():
-    return {'gameMode': 'CLASSIC', 'gameDuration': 1800, 'gameVersion': '16.20.1',
+    return {'gameMode': 'CLASSIC', 'queueId': 420, 'gameDuration': 1800, 'gameVersion': '16.20.1',
             'gameStartTimestamp': 100, 'participants': [
         {'puuid': f'p{i}', 'championName': 'Annie', 'championId': 1,
          'teamId': 100 if i < 5 else 200, 'teamPosition': ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'][i % 5],

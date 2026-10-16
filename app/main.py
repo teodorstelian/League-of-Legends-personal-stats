@@ -15,6 +15,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from . import storage
 from .scoring import score_player
+from .statistics import enrich_dashboard, score_average, lane_averages
+from .history_policy import eligible_info
 
 ROOT = Path(__file__).resolve().parent.parent
 cache = {}
@@ -69,7 +71,7 @@ async def sync_worker(client):
             state.setdefault('end', int(time.time()))
             offset = state.get('recent_offset', 0) if recent else state['offset']
             suffix = '' if recent else f'&endTime={state["end"]}'
-            ids = pending if hydrate else await fetch(client, f'{base}/lol/match/v5/matches/by-puuid/{puuid}/ids?start={offset}&count=20{suffix}', key)
+            ids = pending if hydrate else await fetch(client, f'{base}/lol/match/v5/matches/by-puuid/{puuid}/ids?start={offset}&count=20&type=ranked{suffix}', key)
             known = {m['id'] for m in saved}
             completed = True
             for match_id in ids:
@@ -111,6 +113,7 @@ class RiotError(Exception):
 
 @asynccontextmanager
 async def lifespan(app):
+    storage.apply_history_policy()
     async with httpx.AsyncClient(timeout=15) as client:
         app.state.client = client
         task = asyncio.create_task(sync_worker(client))
@@ -134,6 +137,11 @@ async def home():
 @app.get('/champions/{champion_id}')
 async def champion_page(champion_id: int):
     return FileResponse(ROOT / 'static/champion.html')
+
+
+@app.get('/champions')
+async def champions_page():
+    return FileResponse(ROOT / 'static/champions.html')
 
 
 async def fetch(client, url, key=None):
@@ -173,6 +181,8 @@ async def fetch_response(client, url, key=None):
 
 def match_summary(match, puuid):
     info = match['info']
+    if not eligible_info(info):
+        return None
     player = next((p for p in info['participants'] if p['puuid'] == puuid), None)
     if not player:
         return None
@@ -185,10 +195,11 @@ def match_summary(match, puuid):
         'duration': duration, 'mode': info.get('gameMode', 'Unknown'),
         'queue': info.get('queueId'), 'playedAt': info.get('gameStartTimestamp', 0),
         'score': score_player(info, player)['value'],
+        'role': player.get('teamPosition') or 'UNKNOWN',
     }
 
 
-QUEUES = {'all': None, 'solo': 420, 'flex': 440, 'aram': 450}
+QUEUES = {'all': None, 'solo': 420, 'flex': 440}
 
 
 async def dashboard(client, key, riot_id, queue='all'):
@@ -239,7 +250,7 @@ async def dashboard(client, key, riot_id, queue='all'):
 
 
 @app.get('/api/dashboard')
-async def get_dashboard(queue: Literal['all', 'solo', 'flex', 'aram'] = 'all'):
+async def get_dashboard(queue: Literal['all', 'solo', 'flex'] = 'all'):
     load_dotenv(ROOT / '.env', override=True)
     key = os.getenv('RIOT_API_KEY', '').strip()
     riot_id = os.getenv('RIOT_ID', 'Bagabondu#1909').strip()
@@ -256,18 +267,18 @@ async def get_dashboard(queue: Literal['all', 'solo', 'flex', 'aram'] = 'all'):
             data['queue'] = queue
             catalog = {c['championId']: c for c in data['champions']}
             data['matches'] = [{**m, **{k: v for k, v in catalog.get(m['championId'], {}).items() if k in ('name', 'icon')}} for m in storage.matches(riot_id, QUEUES[queue])]
-            return data
+            return enrich_dashboard(data)
         try:
             data = await dashboard(app.state.client, key, riot_id, queue)
         except RiotError as exc:
             return JSONResponse({'message': exc.message}, status_code=exc.status)
         cache[cache_key] = (time.monotonic() + 120, key, riot_id, data)
         storage.profile(riot_id, data)
-        return data
+        return enrich_dashboard(data)
 
 
 @app.get('/api/champions/{champion_id}')
-async def get_champion(champion_id: int, queue: Literal['all', 'solo', 'flex', 'aram'] = 'all'):
+async def get_champion(champion_id: int, queue: Literal['all', 'solo', 'flex'] = 'all'):
     data = await get_dashboard(queue)
     if isinstance(data, JSONResponse):
         return data
@@ -275,9 +286,10 @@ async def get_champion(champion_id: int, queue: Literal['all', 'solo', 'flex', '
     if champion is None:
         return JSONResponse({'message': 'Champion not found.'}, status_code=404)
     mastery = next((m for m in data['mastery'] if m['championId'] == champion_id), None)
+    matches = [m for m in data['matches'] if m['championId'] == champion_id]
     return {**champion, 'riotId': data['riotId'], 'queue': queue,
             'mastery': mastery or {'points': 0, 'level': 0},
-            'matches': [m for m in data['matches'] if m['championId'] == champion_id],
+            'matches': matches, 'scoreStats': score_average(matches), 'lanes': lane_averages(matches),
             'sampleSize': len(data['matches']), 'warning': data['warning'],
             'updatedAt': data['updatedAt']}
 

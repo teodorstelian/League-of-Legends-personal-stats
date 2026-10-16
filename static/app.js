@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const number = n => new Intl.NumberFormat().format(n);
 let data, expanded = false;
-const queueNames = {all: 'All queues', solo: 'Ranked Solo / Duo', flex: 'Ranked Flex', aram: 'ARAM'};
+const queueNames = {all: 'All ranked', solo: 'Ranked Solo / Duo', flex: 'Ranked Flex'};
 function element(tag, text, className) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -23,6 +23,9 @@ function renderChampions() {
     card.href = `/champions/${champion.championId}`;
     if (champion.icon) card.append(icon(champion.icon, champion.name));
     card.append(element('span', String(index + 1).padStart(2, '0'), 'rank'), element('h3', champion.name), element('p', `Mastery level ${champion.level}`), element('strong', number(champion.points)), element('small', 'MASTERY POINTS'));
+    const average = element('div', undefined, 'champion-score');
+    average.append(element('span', 'Average Rift Score'), scoreGauge(champion.scoreStats.average));
+    card.append(average, element('p', riftScoreSample(champion.scoreStats)));
     $('champions').append(card);
   }
   if (!champions.length) $('champions').append(element('p', 'No champions found.', 'muted'));
@@ -30,6 +33,7 @@ function renderChampions() {
   $('show-all').textContent = expanded ? 'Show top champions' : `Browse all ${data.champions.length} champions`;
 }
 function render() {
+  renderScoreSummary(data.scoreStats, data.lanes);
   $('queue').value = data.queue;
   const context = `${data.matches.length} saved games · ${queueNames[data.queue]}`;
   $('queue-context').textContent = context;
@@ -68,8 +72,7 @@ function render() {
     const score = element('div', `${match.kills} / ${match.deaths} / ${match.assists}`, 'score'); score.append(element('small', `${number(match.cs)} CS`));
     const duration = element('div', `${Math.floor(match.duration / 60)}m ${match.duration % 60}s`, 'match-time');
     duration.append(element('small', new Date(match.playedAt).toLocaleDateString([], {month: 'short', day: 'numeric'})));
-    row.append(element('span', match.win ? 'VICTORY' : 'DEFEAT', 'result'), match.icon ? icon(match.icon, match.name) : element('span'), champion, score, duration);
-    row.append(element('span', match.score === undefined || match.score === null ? 'View analysis →' : `Rift Score ${match.score} / 100 →`, 'match-analysis'));
+    row.append(element('span', match.win ? 'VICTORY' : 'DEFEAT', 'result'), match.icon ? icon(match.icon, match.name) : element('span'), champion, score, ...matchBuildAndScore(match), duration);
     $('matches').append(row);
   }
   if (!matches.length) $('matches').append(element('p', 'No recent matches available.', 'muted'));

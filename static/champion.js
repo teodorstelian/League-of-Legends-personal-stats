@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const number = n => new Intl.NumberFormat().format(n);
 const championId = location.pathname.split('/').filter(Boolean).pop();
-const queueNames = {all: 'all queues', solo: 'Ranked Solo / Duo', flex: 'Ranked Flex', aram: 'ARAM'};
+const queueNames = {all: 'all ranked', solo: 'Ranked Solo / Duo', flex: 'Ranked Flex'};
 let data;
 function el(tag, text, className) {
   const node = document.createElement(tag);
@@ -10,6 +10,7 @@ function el(tag, text, className) {
   return node;
 }
 function render() {
+  renderScoreSummary(data.scoreStats, data.lanes);
   document.title = `${data.name} · Rift Journal`;
   $('name').textContent = data.name;
   $('subtitle').textContent = `${data.title} · ${data.riotId}`;
@@ -39,8 +40,7 @@ function render() {
     const score = el('div', `${match.kills} / ${match.deaths} / ${match.assists}`, 'score'); score.append(el('small', `${number(match.cs)} CS`));
     const duration = el('div', `${Math.floor(match.duration / 60)}m ${match.duration % 60}s`, 'match-time');
     duration.append(el('small', new Date(match.playedAt).toLocaleDateString([], {month:'short',day:'numeric'})));
-    row.append(el('span', match.win ? 'VICTORY' : 'DEFEAT', 'result'), image, champion, score, duration);
-    row.append(el('span', match.score === undefined || match.score === null ? 'View analysis →' : `Rift Score ${match.score} / 100 →`, 'match-analysis'));
+    row.append(el('span', match.win ? 'VICTORY' : 'DEFEAT', 'result'), image, champion, score, ...matchBuildAndScore(match), duration);
     $('matches').append(row);
   }
   if (!matches.length) $('matches').append(el('p', `No ${data.name} games in this sample. Try another queue.`, 'muted'));

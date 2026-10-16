@@ -3,7 +3,7 @@
 
 def score_player(info, player):
     participants = info.get('participants', [])
-    if info.get('gameDuration', 0) < 300 or any(p.get('gameEndedInEarlySurrender') for p in participants):
+    if info.get('gameDuration', 0) < 180 or any(p.get('gameEndedInEarlySurrender') for p in participants):
         return {'value': None, 'reason': 'Short game / remake: no score.', 'version': '1', 'components': []}
     if info.get('gameMode') not in ('CLASSIC', 'ARAM') or len(participants) != 10:
         return {'value': None, 'reason': 'Scoring currently supports standard 5v5 and ARAM.', 'version': '1', 'components': []}

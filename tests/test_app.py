@@ -78,7 +78,7 @@ def test_dashboard_routing_and_cache(monkeypatch):
 
 
 def test_match_summary():
-    match = {'metadata': {'matchId': 'EU_1'}, 'info': {'gameDuration': 1200, 'participants': [
+    match = {'metadata': {'matchId': 'EU_1'}, 'info': {'gameDuration': 1200, 'queueId': 420, 'participants': [
         {'puuid': 'me', 'championName': 'Annie', 'championId': 1, 'win': True, 'kills': 5, 'deaths': 0, 'assists': 9, 'totalMinionsKilled': 100, 'neutralMinionsKilled': 5}]}}
     assert match_summary(match, 'me')['cs'] == 105
     assert match_summary(match, 'someone-else') is None
@@ -121,7 +121,7 @@ def test_champion_pages_filter_matches_and_handle_unplayed(monkeypatch):
 def test_storage_and_sync_controls():
     from app import storage
     player = 'Bagabondu#1909'
-    match = {'id': 'EU_1', 'playedAt': 100, 'queue': 420}
+    match = {'id': 'EU_1', 'playedAt': 100, 'queue': 420, 'duration': 1200}
     storage.save_match(player, match)
     storage.save_match(player, match)
     assert len(storage.matches(player)) == 1
@@ -147,6 +147,7 @@ def test_worker_checkpoint_and_restart(monkeypatch):
         if '/ids?' in url:
             from urllib.parse import urlparse, parse_qs
             query = parse_qs(urlparse(url).query)
+            assert query['type'] == ['ranked']
             offset = int(query['start'][0])
             if 'endTime' in query:
                 offsets.append(offset)
@@ -154,7 +155,7 @@ def test_worker_checkpoint_and_restart(monkeypatch):
                 raise asyncio.CancelledError()
             return [f'EU_{i}' for i in range(20)]
         match_id = url.rsplit('/', 1)[1]
-        return {'metadata': {'matchId': match_id}, 'info': {'gameStartTimestamp': 100,
+        return {'metadata': {'matchId': match_id}, 'info': {'gameStartTimestamp': 100, 'gameDuration': 1200, 'queueId': 420,
                 'participants': [{'puuid': 'me', 'championId': 1, 'championName': 'Annie',
                 'win': True, 'kills': 1, 'deaths': 2, 'assists': 3}]}}
     monkeypatch.setattr('app.main.fetch', fake_fetch)
@@ -179,8 +180,8 @@ def test_saved_profile_serves_history_without_network(monkeypatch):
     monkeypatch.setenv('RIOT_API_KEY', 'unused')
     monkeypatch.setenv('RIOT_ID', 'Test#EU')
     storage.profile('Test#EU', {'queue': 'all', 'champions': [{'championId': 1, 'name': 'Annie', 'icon': 'icon'}]})
-    storage.save_match('Test#EU', {'id': 'one', 'playedAt': 100, 'queue': 420, 'championId': 1})
-    storage.save_match('Test#EU', {'id': 'two', 'playedAt': 200, 'queue': 450, 'championId': 1})
+    storage.save_match('Test#EU', {'id': 'one', 'playedAt': 100, 'queue': 420, 'duration': 1200, 'championId': 1, 'score': 40, 'role': 'TOP'})
+    storage.save_match('Test#EU', {'id': 'two', 'playedAt': 200, 'queue': 440, 'duration': 1200, 'championId': 1, 'score': 80, 'mode': 'ARAM'})
     async def no_network(*args, **kwargs):
         pytest.fail('Saved history should not wait for Riot')
     monkeypatch.setattr('app.main.fetch', no_network)
@@ -189,6 +190,9 @@ def test_saved_profile_serves_history_without_network(monkeypatch):
     assert body['queue'] == 'solo'
     assert len(body['matches']) == 1
     assert body['matches'][0]['name'] == 'Annie'
+    assert body['scoreStats']['average'] == 40
+    assert body['champions'][0]['scoreStats']['average'] == 40
+    assert body['lanes'][0]['average'] == 40
 
 
 def test_match_details_use_saved_data_and_reject_unknown_matches(monkeypatch):

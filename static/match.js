@@ -37,14 +37,13 @@ function render() {
   $('heading').textContent = `${own.win ? 'Victory' : 'Defeat'} · ${own.name}`;
   const queues = {420:'Ranked Solo / Duo',440:'Ranked Flex',450:'ARAM',400:'Normal Draft'};
   $('subtitle').textContent = `${queues[data.queue] || data.mode} · ${Math.floor(data.duration / 60)}m ${data.duration % 60}s · ${new Date(data.playedAt).toLocaleString()} · Patch ${data.patch} · ${data.id}`;
-  $('rift-score').textContent = own.score.value ?? '—';
+  $('rift-score').replaceChildren(scoreGauge(own.score.value, 'gauge-hero'));
   $('comparison').textContent = own.score.comparison || own.score.reason;
   $('method').textContent = own.score.method || own.score.reason;
   $('components').replaceChildren();
   for (const c of own.score.components) {
     const card = el('article', undefined, 'component');
-    const meter = el('meter'); meter.min = 0; meter.max = 100; meter.value = c.value; meter.setAttribute('aria-label', c.name);
-    card.append(el('h3', c.name), el('strong', `${c.value} / 100`), meter, el('p', `You: ${number(c.own)} · Comparison: ${number(c.comparison)}`, 'muted'), el('p', `${c.weight}% weight · ${c.description}`, 'muted'));
+    card.append(el('h3', c.name), scoreGauge(c.value, 'gauge-medium', c.name), el('p', `You: ${number(c.own)} · Comparison: ${number(c.comparison)}`, 'muted'), el('p', `${c.weight}% weight · ${c.description}`, 'muted'));
     $('components').append(card);
   }
   if (!own.score.components.length) $('components').append(el('p', own.score.reason, 'muted'));
@@ -65,7 +64,8 @@ function render() {
       const row = el('tr', undefined, p.you ? 'you-row' : '');
       const name = el('td'), button = el('button', `${p.riotId}${p.you ? ' · You' : ''}`, 'player-select'); button.dataset.player = p.riotId; button.addEventListener('click', () => inspect(p));
       name.append(button, el('small', `${p.name} · Lv ${number(p.champLevel)}`)); row.append(name);
-      for (const text of [p.role, `${p.kills} / ${p.deaths} / ${p.assists}`, number(p.totalDamageDealtToChampions), number(p.goldEarned), number(p.cs), number(p.visionScore), `${p.kp}%`, p.score.value ?? '—']) row.append(el('td', text));
+      for (const text of [p.role, `${p.kills} / ${p.deaths} / ${p.assists}`, number(p.totalDamageDealtToChampions), number(p.goldEarned), number(p.cs), number(p.visionScore), `${p.kp}%`]) row.append(el('td', text));
+      const scoreCell = el('td'); scoreCell.append(scoreGauge(p.score.value)); row.append(scoreCell);
       tbody.append(row);
     }
     table.append(tbody); wrap.append(table); section.append(wrap); $('teams').append(section);
