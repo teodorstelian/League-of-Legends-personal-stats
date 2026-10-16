@@ -38,6 +38,11 @@ async def home():
     return FileResponse(ROOT / 'static/index.html')
 
 
+@app.get('/champions/{champion_id}')
+async def champion_page(champion_id: int):
+    return FileResponse(ROOT / 'static/champion.html')
+
+
 async def fetch(client, url, key=None):
     try:
         response = await client.get(url, headers={'X-Riot-Token': key} if key else {})
@@ -121,6 +126,7 @@ async def dashboard(client, key, riot_id, queue='all'):
     def champion_data(champion_id):
         c = champions.get(champion_id)
         return {'name': c['name'] if c else f'Champion {champion_id}',
+                'championId': champion_id,
                 'icon': f'https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/{c["image"]["full"]}' if c else None}
     mastery = [{**champion_data(m['championId']), 'points': m['championPoints'], 'level': m['championLevel']} for m in masteries]
     mastery.sort(key=lambda m: m['points'], reverse=True)
@@ -131,6 +137,7 @@ async def dashboard(client, key, riot_id, queue='all'):
             'icon': f'https://ddragon.leagueoflegends.com/cdn/{version}/img/profileicon/{profile["profileIconId"]}.png',
             'mastery': mastery, 'matches': matches, 'warning': warning,
             'ranked': ranked, 'rankWarning': rank_warning, 'queue': queue,
+            'champions': [{**champion_data(cid), 'title': c.get('title', ''), 'tags': c.get('tags', [])} for cid, c in champions.items()],
             'updatedAt': int(time.time())}
 
 
@@ -154,3 +161,19 @@ async def get_dashboard(queue: Literal['all', 'solo', 'flex', 'aram'] = 'all'):
             return JSONResponse({'message': exc.message}, status_code=exc.status)
         cache[cache_key] = (time.monotonic() + 120, key, riot_id, data)
         return data
+
+
+@app.get('/api/champions/{champion_id}')
+async def get_champion(champion_id: int, queue: Literal['all', 'solo', 'flex', 'aram'] = 'all'):
+    data = await get_dashboard(queue)
+    if isinstance(data, JSONResponse):
+        return data
+    champion = next((c for c in data['champions'] if c['championId'] == champion_id), None)
+    if champion is None:
+        return JSONResponse({'message': 'Champion not found.'}, status_code=404)
+    mastery = next((m for m in data['mastery'] if m['championId'] == champion_id), None)
+    return {**champion, 'riotId': data['riotId'], 'queue': queue,
+            'mastery': mastery or {'points': 0, 'level': 0},
+            'matches': [m for m in data['matches'] if m['championId'] == champion_id],
+            'sampleSize': len(data['matches']), 'warning': data['warning'],
+            'updatedAt': data['updatedAt']}

@@ -15,17 +15,19 @@ function icon(src, name) {
 }
 function renderChampions() {
   const query = $('search').value.trim().toLocaleLowerCase();
-  const champions = data.mastery.filter(c => c.name.toLocaleLowerCase().includes(query));
+  const collection = expanded || query ? data.champions.map(c => ({...c, ...(data.mastery.find(m => m.championId === c.championId) || {points: 0, level: 0})})).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)) : data.mastery;
+  const champions = collection.filter(c => c.name.toLocaleLowerCase().includes(query));
   $('champions').replaceChildren();
   for (const [index, champion] of champions.slice(0, expanded || query ? undefined : 8).entries()) {
-    const card = element('article', undefined, 'champion');
+    const card = element('a', undefined, 'champion');
+    card.href = `/champions/${champion.championId}`;
     if (champion.icon) card.append(icon(champion.icon, champion.name));
     card.append(element('span', String(index + 1).padStart(2, '0'), 'rank'), element('h3', champion.name), element('p', `Mastery level ${champion.level}`), element('strong', number(champion.points)), element('small', 'MASTERY POINTS'));
     $('champions').append(card);
   }
   if (!champions.length) $('champions').append(element('p', 'No champions found.', 'muted'));
   $('show-all').hidden = !!query || data.mastery.length <= 8;
-  $('show-all').textContent = expanded ? 'Show top champions' : `Show all ${data.mastery.length} champions`;
+  $('show-all').textContent = expanded ? 'Show top champions' : `Browse all ${data.champions.length} champions`;
 }
 function render() {
   $('queue').value = data.queue;

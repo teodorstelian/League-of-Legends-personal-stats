@@ -85,3 +85,24 @@ def test_rejected_key(monkeypatch):
         app.state.client = original
     assert response.status_code == 503
     assert 'rejected' in response.json()['message']
+
+
+def test_champion_pages_filter_matches_and_handle_unplayed(monkeypatch):
+    async def fake_dashboard(queue):
+        return {'champions': [{'championId': 1, 'name': 'Annie'}, {'championId': 2, 'name': 'Olaf'}],
+                'mastery': [{'championId': 1, 'points': 500, 'level': 2}],
+                'matches': [{'championId': 1, 'id': 'one'}, {'championId': 2, 'id': 'two'}],
+                'riotId': 'Test#EU', 'warning': None, 'updatedAt': 123}
+    monkeypatch.setattr('app.main.get_dashboard', fake_dashboard)
+    with TestClient(app) as client:
+        assert client.get('/champions/1').status_code == 200
+        response = client.get('/api/champions/1?queue=solo')
+        assert response.status_code == 200
+        body = response.json()
+        assert body['queue'] == 'solo'
+        assert body['matches'] == [{'championId': 1, 'id': 'one'}]
+        assert body['sampleSize'] == 2
+        assert body['mastery']['points'] == 500
+        assert client.get('/api/champions/2').json()['mastery'] == {'points': 0, 'level': 0}
+        assert client.get('/api/champions/9999').status_code == 404
+        assert client.get('/api/champions/1?queue=invalid').status_code == 422
