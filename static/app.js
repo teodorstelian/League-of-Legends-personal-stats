@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const number = n => new Intl.NumberFormat().format(n);
 let data, expanded = false;
+const queueNames = {all: 'All queues', solo: 'Ranked Solo / Duo', flex: 'Ranked Flex', aram: 'ARAM'};
 function element(tag, text, className) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -27,6 +28,25 @@ function renderChampions() {
   $('show-all').textContent = expanded ? 'Show top champions' : `Show all ${data.mastery.length} champions`;
 }
 function render() {
+  $('queue').value = data.queue;
+  const context = `Last ${data.matches.length} games · ${queueNames[data.queue]}`;
+  $('queue-context').textContent = context;
+  $('match-context').textContent = context;
+  $('ranked').replaceChildren();
+  if (data.ranked === null) {
+    $('ranked').append(element('p', `Ranked standings unavailable: ${data.rankWarning}`, 'muted'));
+  } else for (const rank of data.ranked) {
+    const card = element('article', undefined, 'rank-card');
+    card.append(element('p', `RANKED ${rank.queue.toUpperCase()}`, 'eyebrow'));
+    if (rank.tier) {
+      const tier = rank.tier.charAt(0) + rank.tier.slice(1).toLowerCase();
+      const apex = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(rank.tier);
+      card.append(element('h3', `${tier}${apex ? '' : ` ${rank.division}`}`), element('strong', `${number(rank.lp)} LP`));
+      const total = rank.wins + rank.losses;
+      card.append(element('p', `${number(rank.wins)}W · ${number(rank.losses)}L · ${total ? Math.round(rank.wins / total * 100) : 0}% win rate`, 'muted'));
+    } else card.append(element('h3', 'Unranked'), element('p', 'No current ranked entry for this queue.', 'muted'));
+    $('ranked').append(card);
+  }
   $('riot-id').textContent = data.riotId;
   $('profile-detail').textContent = `Europe Nordic & East · Level ${number(data.level)}`;
   $('profile-icon').src = data.icon; $('profile-icon').hidden = false;
@@ -51,19 +71,23 @@ function render() {
   if (!matches.length) $('matches').append(element('p', 'No recent matches available.', 'muted'));
 }
 async function load() {
+  const selectedQueue = $('queue').value;
+  $('queue').disabled = true;
   $('refresh').disabled = true; $('refresh').textContent = 'Loading…';
   $('status').hidden = false; $('status').className = ''; $('status').textContent = 'Fetching your latest stats from Riot…';
   try {
-    const response = await fetch('/api/dashboard'); const body = await response.json();
+    const response = await fetch(`/api/dashboard?queue=${encodeURIComponent(selectedQueue)}`); const body = await response.json();
     if (!response.ok) throw new Error(body.message || 'Unable to load stats. Please try again.');
     data = body; render(); $('content').hidden = false;
     $('status').hidden = !data.warning;
     if (data.warning) { $('status').textContent = `Some recent matches could not be loaded: ${data.warning}`; $('status').className = 'error'; }
   } catch (error) {
+    if (data) $('queue').value = data.queue;
     $('status').className = 'error'; $('status').textContent = error.message;
     if (data) $('status').append(element('p', 'Showing the previously loaded stats below.'));
-  } finally { $('refresh').disabled = false; $('refresh').textContent = '↻ Refresh stats'; }
+  } finally { $('queue').disabled = false; $('refresh').disabled = false; $('refresh').textContent = '↻ Refresh stats'; }
 }
+$('queue').addEventListener('change', load);
 $('refresh').addEventListener('click', load);
 $('search').addEventListener('input', renderChampions);
 $('show-all').addEventListener('click', () => { expanded = !expanded; renderChampions(); });

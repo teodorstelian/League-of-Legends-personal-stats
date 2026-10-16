@@ -30,6 +30,8 @@ On a fresh clone, copy `.env.example` to `.env` first. The key is only sent from
 - Match requests run sequentially to limit bursts. Rate limits, expired keys, missing players, and timeouts produce readable messages. Partial match results show a warning.
 - Win rate and averages describe only the loaded recent matches, across all queues, not the full ranked season. No sample stats are presented as live data.
 - Champion filtering is case insensitive. The initial view shows the top eight champions, with an option to show all.
+- Ranked overview shows current Solo/Duo and Flex tier, division, LP, wins, losses, and win rate. Missing entries appear as Unranked; API failures appear as unavailable.
+- The queue selector fetches the latest ten matches for All queues, Solo/Duo, Flex, or ARAM from Riot. Recent win rate and average K/D/A follow that selection; mastery and current standings remain account-wide. Each queue has its own two-minute cache.
 - This version is a single-user local app. Keep it bound to localhost.
 
 ## Tests

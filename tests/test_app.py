@@ -34,6 +34,9 @@ def test_dashboard_routing_and_cache(monkeypatch):
             body = {'summonerLevel': 100, 'profileIconId': 1}
         elif '/champion-mastery/' in path:
             body = [{'championId': 1, 'championPoints': 500, 'championLevel': 2}]
+        elif '/league/' in path:
+            assert request.url.host == 'eun1.api.riotgames.com'
+            body = [{'queueType': 'RANKED_SOLO_5x5', 'tier': 'GOLD', 'rank': 'II', 'leaguePoints': 42, 'wins': 12, 'losses': 8}]
         elif '/ids' in path:
             body = []
         elif 'versions' in path:
@@ -48,9 +51,19 @@ def test_dashboard_routing_and_cache(monkeypatch):
         count = len(calls)
         assert client.get('/api/dashboard').json() == first.json()
         assert len(calls) == count
+        solo = client.get('/api/dashboard?queue=solo')
+        assert solo.json()['queue'] == 'solo'
+        assert any('queue=420' in url for url in calls)
+        count = len(calls)
+        assert client.get('/api/dashboard?queue=solo').json() == solo.json()
+        assert len(calls) == count
+        assert client.get('/api/dashboard?queue=invalid').status_code == 422
+        assert len(calls) == count
         app.state.client = original
     assert first.status_code == 200
     assert first.json()['mastery'][0]['name'] == 'Annie'
+    assert first.json()['ranked'][0]['lp'] == 42
+    assert first.json()['ranked'][1]['tier'] is None
     assert 'test-secret' not in first.text
 
 

@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 from contextlib import asynccontextmanager
+from typing import Literal
 from pathlib import Path
 from urllib.parse import quote
 
@@ -73,7 +74,10 @@ def match_summary(match, puuid):
     }
 
 
-async def dashboard(client, key, riot_id):
+QUEUES = {'all': None, 'solo': 420, 'flex': 440, 'aram': 450}
+
+
+async def dashboard(client, key, riot_id, queue='all'):
     name, tag = riot_id.rsplit('#', 1)
     regional = 'https://europe.api.riotgames.com'
     platform = 'https://eun1.api.riotgames.com'
@@ -81,7 +85,21 @@ async def dashboard(client, key, riot_id):
     puuid = quote(account['puuid'], safe='')
     profile = await fetch(client, f'{platform}/lol/summoner/v4/summoners/by-puuid/{puuid}', key)
     masteries = await fetch(client, f'{platform}/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}', key)
-    ids = await fetch(client, f'{regional}/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=10', key)
+    ranked, rank_warning = None, None
+    try:
+        entries = await fetch(client, f'{platform}/lol/league/v4/entries/by-puuid/{puuid}', key)
+        ranked = []
+        for queue_type, label in [('RANKED_SOLO_5x5', 'Solo / Duo'), ('RANKED_FLEX_SR', 'Flex')]:
+            entry = next((e for e in entries if e['queueType'] == queue_type), None)
+            ranked.append({'queue': label, 'tier': entry['tier'] if entry else None,
+                           'division': entry['rank'] if entry else None,
+                           'lp': entry['leaguePoints'] if entry else None,
+                           'wins': entry['wins'] if entry else 0,
+                           'losses': entry['losses'] if entry else 0})
+    except RiotError as exc:
+        rank_warning = exc.message
+    queue_query = f'&queue={QUEUES[queue]}' if QUEUES[queue] else ''
+    ids = await fetch(client, f'{regional}/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=10{queue_query}', key)
     # Sequential match calls avoid a burst against the development key's short rate window.
     matches, warning = [], None
     for match_id in ids:
@@ -112,11 +130,12 @@ async def dashboard(client, key, riot_id):
             'region': 'EUNE', 'level': profile['summonerLevel'],
             'icon': f'https://ddragon.leagueoflegends.com/cdn/{version}/img/profileicon/{profile["profileIconId"]}.png',
             'mastery': mastery, 'matches': matches, 'warning': warning,
+            'ranked': ranked, 'rankWarning': rank_warning, 'queue': queue,
             'updatedAt': int(time.time())}
 
 
 @app.get('/api/dashboard')
-async def get_dashboard():
+async def get_dashboard(queue: Literal['all', 'solo', 'flex', 'aram'] = 'all'):
     load_dotenv(ROOT / '.env', override=True)
     key = os.getenv('RIOT_API_KEY', '').strip()
     riot_id = os.getenv('RIOT_ID', 'Bagabondu#1909').strip()
@@ -125,12 +144,13 @@ async def get_dashboard():
     if '#' not in riot_id or not all(riot_id.rsplit('#', 1)):
         return JSONResponse({'message': 'RIOT_ID must include both name and tagline, for example Bagabondu#1909.'}, status_code=400)
     async with lock:
-        cached = cache.get('dashboard')
+        cache_key = ('dashboard', queue)
+        cached = cache.get(cache_key)
         if cached and cached[0] > time.monotonic() and cached[1:3] == (key, riot_id):
             return cached[3]
         try:
-            data = await dashboard(app.state.client, key, riot_id)
+            data = await dashboard(app.state.client, key, riot_id, queue)
         except RiotError as exc:
             return JSONResponse({'message': exc.message}, status_code=exc.status)
-        cache['dashboard'] = (time.monotonic() + 120, key, riot_id, data)
+        cache[cache_key] = (time.monotonic() + 120, key, riot_id, data)
         return data

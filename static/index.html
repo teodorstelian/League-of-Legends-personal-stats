@@ -8,9 +8,11 @@
 <div class="toolbar"><p id="updated">Connect your account to get started</p><button id="refresh">↻ Refresh stats</button></div>
 <div id="status" role="status" aria-live="polite">Loading your journal…</div>
 <div id="content" hidden>
+<section class="rank-section"><div class="section-heading"><div><p class="eyebrow">THE CURRENT CLIMB</p><h2>Ranked overview</h2></div><span class="muted">Current ranked standings</span></div><div id="ranked" class="ranked"></div></section>
+<div class="queue-bar"><label for="queue">Recent performance & matches</label><select id="queue"><option value="all">All queues</option><option value="solo">Ranked Solo / Duo</option><option value="flex">Ranked Flex</option><option value="aram">ARAM</option></select><span id="queue-context" class="muted">Last 10 games · All queues</span></div>
 <section class="metrics" aria-label="Recent performance"><article><p>RECENT WIN RATE</p><strong id="win-rate">—</strong><small id="record"></small></article><article><p>AVERAGE K / D / A</p><strong id="kda">—</strong><small>Across loaded matches</small></article><article><p>TOTAL MASTERY</p><strong id="total-mastery">—</strong><small id="champion-count"></small></article></section>
 <section class="champion-section"><div class="section-heading"><div><p class="eyebrow">THE ONES YOU KNOW BEST</p><h2>Champion mastery</h2></div><label class="search">⌕ <input id="search" type="search" placeholder="Find a champion" aria-label="Filter champion mastery"></label></div><div id="champions" class="champions"></div><button id="show-all" class="secondary" hidden>Show all champions</button></section>
-<section><div class="section-heading"><div><p class="eyebrow">BACK FROM THE RIFT</p><h2>Recent matches</h2></div><span class="muted">Last 10 games</span></div><div id="matches" class="matches"></div></section>
+<section><div class="section-heading"><div><p class="eyebrow">BACK FROM THE RIFT</p><h2>Recent matches</h2></div><span id="match-context" class="muted">Last 10 games · All queues</span></div><div id="matches" class="matches"></div></section>
 </div>
 <footer><span>RIFT JOURNAL <span class="muted">/ A personal record</span></span><p>Rift Journal isn’t endorsed by Riot Games and doesn’t reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p></footer>
 </main></body></html>
