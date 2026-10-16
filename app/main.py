@@ -19,6 +19,7 @@ from .calibration import calibration_report
 from .statistics import enrich_dashboard, score_average, lane_averages, champion_tiers
 from .history_policy import eligible_info
 from .trends import performance_trends
+from .matchups import champion_matchups, all_matchups
 
 ROOT = Path(__file__).resolve().parent.parent
 cache = {}
@@ -339,6 +340,16 @@ async def get_sync():
             'oldest': saved[-1]['playedAt'] if saved else None}
 
 
+@app.get('/api/champions/{champion_id}/matchups')
+async def get_matchups(champion_id: int, queue: Literal['all','solo','flex']='all', role: Literal['all','TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY']='all', period: Literal['all','30d']='all'):
+    data=await get_dashboard(queue)
+    if isinstance(data,JSONResponse):
+        return data
+    if not any(c['championId']==champion_id for c in data['champions']):
+        return JSONResponse({'message':'Champion not found.'},status_code=404)
+    return champion_matchups(data,champion_id,time.time(),role,period)
+
+
 @app.post('/api/sync/{action}')
 async def control_sync(action: Literal['pause', 'resume', 'more', 'check']):
     _, player = configuration()
@@ -443,6 +454,19 @@ async def build_match_details(stored):
 @app.get('/calibration')
 async def calibration_page():
     return FileResponse(ROOT / 'static/calibration.html')
+
+
+@app.get('/matchups')
+async def matchups_page():
+    return FileResponse(ROOT / 'static/matchups.html')
+
+
+@app.get('/api/matchups')
+async def get_all_matchups(queue: Literal['all','solo','flex']='all', role: Literal['all','TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY']='all', period: Literal['all','30d']='all', minimum: int=Query(default=3,ge=1,le=1000), champion: int=Query(default=0,ge=0)):
+    data=await get_dashboard(queue)
+    if isinstance(data,JSONResponse):
+        return data
+    return all_matchups(data,time.time(),role,period,minimum,champion)
 
 
 @app.get('/api/calibration')

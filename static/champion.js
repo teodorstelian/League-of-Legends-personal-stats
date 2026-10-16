@@ -53,6 +53,7 @@ async function load() {
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || 'Unable to load this champion.');
     data = body; render(); $('content').hidden = false;
+    loadMatchups();
     $('status').hidden = !data.warning;
     if (data.warning) { $('status').className = 'error'; $('status').textContent = `The recent match sample is incomplete: ${data.warning}`; }
   } catch (error) {

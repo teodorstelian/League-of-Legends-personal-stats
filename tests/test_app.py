@@ -283,3 +283,26 @@ def test_calibration_route_and_queue(monkeypatch):
         assert body['queue']=='solo' and body['version']=='3'
         assert body['overall']['count']==0
         assert client.get('/api/calibration?minimum=0').status_code==422
+
+
+def test_matchup_endpoint_validation_and_queue(monkeypatch):
+    async def fake_dashboard(queue):
+        return {'queue':queue,'matches':[],'champions':[{'championId':17,'name':'Teemo'}]}
+    monkeypatch.setattr('app.main.get_dashboard',fake_dashboard)
+    with TestClient(app) as client:
+        body=client.get('/api/champions/17/matchups?queue=solo&period=30d&role=TOP').json()
+        assert body['queue']=='solo' and body['period']=='30d'
+        assert body['rows']==[]
+        assert client.get('/api/champions/9999/matchups').status_code==404
+        assert client.get('/api/champions/17/matchups?role=unknown').status_code==422
+
+
+def test_general_matchups_endpoint(monkeypatch):
+    async def fake_dashboard(queue):return {'queue':queue,'matches':[],'champions':[]}
+    monkeypatch.setattr('app.main.get_dashboard',fake_dashboard)
+    with TestClient(app) as client:
+        assert client.get('/matchups').status_code==200
+        body=client.get('/api/matchups?queue=flex&minimum=1').json()
+        assert body['queue']=='flex' and body['bans']==[] and body['banMinimum']==3
+        assert client.get('/api/matchups?minimum=0').status_code==422
+        assert client.get('/api/matchups?period=bad').status_code==422

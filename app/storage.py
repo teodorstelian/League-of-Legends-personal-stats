@@ -59,6 +59,10 @@ def matches(player, queue=None):
             match['itemPatch'] = '.'.join(detail['raw']['info'].get('gameVersion', '').split('.')[:2])
             match['damage'] = own.get('totalDamageDealtToChampions')
             match['vision'] = own.get('visionScore')
+            role = own.get('teamPosition')
+            opponents = [p for p in detail['raw']['info']['participants'] if role in ('TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY') and p.get('teamId') != own.get('teamId') and p.get('teamPosition') == role]
+            match['opponentId'] = opponents[0]['championId'] if len(opponents) == 1 else None
+            match['matchupStatus'] = 'matched' if len(opponents) == 1 else 'ambiguous'
         if eligible_summary(match):
             result.append(match)
     return [m for m in result if queue is None or m['queue'] == queue]
