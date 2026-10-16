@@ -97,7 +97,12 @@ def apply_history_policy():
                 own = next((p for p in info['participants'] if p.get('puuid') == detail['puuid']), None)
                 if own:
                     value['score'] = score_player(info, own)['value']
+                    value['scoreVersion'] = '2'
                     db.execute('UPDATE matches SET body=? WHERE player=? AND id=?', (json.dumps(value), player, match_id))
+            elif json.loads(body).get('scoreVersion') != '2':
+                value = json.loads(body)
+                value.update(score=None, scoreVersion='2')
+                db.execute('UPDATE matches SET body=? WHERE player=? AND id=?', (json.dumps(value), player, match_id))
         db.execute('DELETE FROM details WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.player=details.player AND m.id=details.id)')
         for player, body in db.execute('SELECT player,body FROM profiles').fetchall():
             value = json.loads(body)

@@ -14,17 +14,21 @@ def game():
         for i in range(10)]}
 
 
-def test_equal_performance_is_50_and_win_does_not_change_score():
+def test_opponent_and_win_do_not_change_score():
     info = game()
-    assert score_player(info, info['participants'][0])['value'] == 50
-    assert score_player(info, info['participants'][5])['value'] == 50
+    p = info['participants'][0]
+    baseline = score_player(info, p)['value']
+    info['participants'][5].update(totalDamageDealtToChampions=999999, kills=100, deaths=0, visionScore=200)
+    p['win'] = False
+    assert score_player(info, p)['value'] == baseline
 
 
 def test_improving_damage_or_survival_increases_score():
     info = game()
     p = info['participants'][0]
+    baseline = score_player(info, p)['value']
     p['totalDamageDealtToChampions'] *= 4
-    assert score_player(info, p)['value'] > 50
+    assert score_player(info, p)['value'] > baseline
     p['deaths'] = 0
     score = score_player(info, p)
     assert 50 < score['value'] <= 100
@@ -35,12 +39,12 @@ def test_support_impact_and_aram_rules():
     info = game()
     p = info['participants'][4]
     score = score_player(info, p)
-    assert score['components'][0]['name'] == 'Teamfight impact'
+    assert score['components'][0]['name'] == 'Support impact'
     p['totalHealsOnTeammates'] = 50000
     assert score_player(info, p)['value'] > 50
     info['gameMode'] = 'ARAM'
     score = score_player(info, p)
-    assert score['comparison'] == 'Average of the opposing team'
+    assert score['opponentContext'] == 'Opposing team average'
     assert len(score['components']) == 4
     assert not any(c['name'] in ('Vision', 'Objective pressure') for c in score['components'])
 
@@ -50,11 +54,11 @@ def test_missing_metrics_zeroes_and_remakes():
     for p in info['participants']:
         p['deaths'] = 0
         p['damageDealtToObjectives'] = 0
-    assert score_player(info, info['participants'][0])['value'] == 50
+    assert 0 <= score_player(info, info['participants'][0])['value'] <= 100
     del info['participants'][0]['visionScore']
     score = score_player(info, info['participants'][0])
     assert len(score['components']) == 5
-    assert score['value'] == 50
+    assert score['value'] is not None
     info['gameDuration'] = 90
     assert score_player(info, info['participants'][0])['value'] is None
 
@@ -63,3 +67,30 @@ def test_unsupported_modes_are_not_scored():
     info = game()
     info['gameMode'] = 'CHERRY'
     assert score_player(info, info['participants'][0])['value'] is None
+
+
+def test_both_opponents_can_independently_earn_100():
+    info = game()
+    for index in (0, 5):
+        info['participants'][index].update(totalDamageDealtToChampions=30000, goldEarned=15000,
+            assists=20, deaths=0, visionScore=36, damageDealtToObjectives=30000)
+    assert score_player(info, info['participants'][0])['value'] == 100
+    assert score_player(info, info['participants'][5])['value'] == 100
+
+
+def test_equal_rates_score_equally_across_duration():
+    info = game()
+    before = score_player(info, info['participants'][0])['value']
+    info['gameDuration'] *= 2
+    for p in info['participants']:
+        for field in ['kills','deaths','assists','goldEarned','totalDamageDealtToChampions','visionScore','damageDealtToObjectives']:
+            p[field] *= 2
+    assert score_player(info, info['participants'][0])['value'] == before
+
+
+def test_too_many_missing_metrics_do_not_produce_a_perfect_score():
+    info = game()
+    p = info['participants'][0]
+    for field in ['goldEarned','visionScore','damageDealtToObjectives','totalDamageDealtToChampions']:
+        del p[field]
+    assert score_player(info, p)['value'] is None

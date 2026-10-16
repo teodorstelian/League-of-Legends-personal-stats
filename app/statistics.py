@@ -29,3 +29,33 @@ def enrich_dashboard(data):
     for field in ('champions', 'mastery'):
         data[field] = [{**c, 'scoreStats': score_average(groups.get(c['championId'], []))} for c in data.get(field, [])]
     return data
+
+
+TIERS = [('S', 75), ('A', 60), ('B', 50), ('C', 40), ('D', 0)]
+
+
+def champion_tiers(data, minimum=3):
+    catalog = {c['championId']: c for c in data.get('champions', [])}
+    roles = []
+    for role in ('TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'):
+        groups = {}
+        for match in data['matches']:
+            if match.get('role') == role:
+                groups.setdefault(match['championId'], []).append(match)
+        tiers = {tier: [] for tier, _ in TIERS}
+        provisional = []
+        for champion_id, matches in groups.items():
+            champion = catalog.get(champion_id, {'championId': champion_id, 'name': f'Champion {champion_id}', 'icon': None})
+            stats = score_average(matches)
+            value = {**champion, 'scoreStats': stats, 'wins': sum(bool(m.get('win')) for m in matches)}
+            if stats['scored'] < minimum or stats['average'] is None:
+                provisional.append(value)
+            else:
+                tier = next(t for t, threshold in TIERS if stats['average'] >= threshold)
+                tiers[tier].append(value)
+        def order(c):
+            return (-(c['scoreStats']['average'] if c['scoreStats']['average'] is not None else -1), -c['scoreStats']['scored'], c['name'])
+        roles.append({'role': role, 'name': LANES[role], 'tiers': [{'tier': tier, 'minimum': threshold, 'champions': sorted(tiers[tier], key=order)} for tier, threshold in TIERS], 'provisional': sorted(provisional, key=order)})
+    return {'queue': data.get('queue', 'all'), 'minimumGames': minimum, 'roles': roles,
+            'unknownRoleGames': sum(m.get('role') not in ('TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY') for m in data['matches']),
+            'totalGames': len(data['matches'])}

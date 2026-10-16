@@ -10,12 +10,12 @@ from urllib.parse import quote
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from . import storage
 from .scoring import score_player
-from .statistics import enrich_dashboard, score_average, lane_averages
+from .statistics import enrich_dashboard, score_average, lane_averages, champion_tiers
 from .history_policy import eligible_info
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -144,6 +144,22 @@ async def champions_page():
     return FileResponse(ROOT / 'static/champions.html')
 
 
+@app.get('/tier-list')
+async def tier_list_page():
+    return FileResponse(ROOT / 'static/tier-list.html')
+
+
+@app.get('/api/tier-list')
+async def get_tier_list(queue: Literal['all', 'solo', 'flex'] = 'all', minimum: int = Query(default=3, ge=1, le=1000), period: Literal['all', '30d'] = 'all'):
+    data = await get_dashboard(queue)
+    if isinstance(data, JSONResponse):
+        return data
+    if period == '30d':
+        cutoff = int((time.time() - 30 * 86400) * 1000)
+        data = {**data, 'matches': [m for m in data['matches'] if cutoff <= m.get('playedAt', 0) <= int(time.time() * 1000)]}
+    return {**champion_tiers(data, minimum), 'period': period}
+
+
 async def fetch(client, url, key=None):
     global next_request
     if key:
@@ -195,6 +211,7 @@ def match_summary(match, puuid):
         'duration': duration, 'mode': info.get('gameMode', 'Unknown'),
         'queue': info.get('queueId'), 'playedAt': info.get('gameStartTimestamp', 0),
         'score': score_player(info, player)['value'],
+        'scoreVersion': '2',
         'role': player.get('teamPosition') or 'UNKNOWN',
     }
 
@@ -317,6 +334,11 @@ async def control_sync(action: Literal['pause', 'resume', 'more']):
 @app.get('/matches/{match_id}')
 async def match_page(match_id: str):
     return FileResponse(ROOT / 'static/match.html')
+
+
+@app.get('/matches')
+async def matches_page():
+    return FileResponse(ROOT / 'static/matches.html')
 
 
 @app.get('/api/matches/{match_id}')

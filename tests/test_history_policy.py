@@ -19,7 +19,7 @@ def test_ranked_duration_boundary(queue, duration, expected):
 def test_remake_flag_and_three_minute_score():
     info = game()
     info['gameDuration'] = 180
-    assert score_player(info, info['participants'][0])['value'] == 50
+    assert score_player(info, info['participants'][0])['value'] is not None
     info['participants'][0]['gameEndedInEarlySurrender'] = True
     assert not eligible_info(info)
     assert score_player(info, info['participants'][0])['value'] is None
@@ -46,3 +46,20 @@ def test_storage_rejects_excluded_and_migration_removes_old_rows(tmp_path, monke
     storage.save_state('me', state)
     assert storage.apply_history_policy() == 0
     assert storage.state('me')['offset'] == 20
+
+
+def test_existing_scores_are_recalculated_without_mixing_versions(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, 'DB', tmp_path / 'scores.sqlite3')
+    info = game()
+    raw = {'metadata': {'matchId': 'old'}, 'info': info}
+    summary = match_summary(raw, 'p0')
+    summary.update(score=99, scoreVersion='1')
+    storage.save_match('me', summary)
+    storage.detail('me', 'old', {'raw': raw, 'puuid': 'p0'})
+    storage.save_match('me', {**summary, 'id': 'no-detail'})
+    storage.apply_history_policy()
+    saved = {m['id']: m for m in storage.matches('me')}
+    assert saved['old']['score'] == score_player(info, info['participants'][0])['value']
+    assert saved['old']['scoreVersion'] == '2'
+    assert saved['no-detail']['score'] is None
+    assert saved['no-detail']['scoreVersion'] == '2'

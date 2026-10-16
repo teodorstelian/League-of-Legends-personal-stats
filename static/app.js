@@ -37,7 +37,7 @@ function render() {
   $('queue').value = data.queue;
   const context = `${data.matches.length} saved games · ${queueNames[data.queue]}`;
   $('queue-context').textContent = context;
-  $('match-context').textContent = context;
+  $('match-context').textContent = `Latest ${Math.min(5,data.matches.length)} · ${queueNames[data.queue]}`;
   $('ranked').replaceChildren();
   if (data.ranked === null) {
     $('ranked').append(element('p', `Ranked standings unavailable: ${data.rankWarning}`, 'muted'));
@@ -65,7 +65,7 @@ function render() {
   $('updated').textContent = `Profile updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} · History updates automatically`;
   renderChampions(); $('matches').replaceChildren();
   const queues = {420: 'Ranked Solo / Duo', 440: 'Ranked Flex', 450: 'ARAM', 400: 'Normal Draft', 490: 'Quickplay', 1700: 'Arena'};
-  for (const match of matches) {
+  for (const match of matches.slice(0, 5)) {
     const row = element('a', undefined, `match ${match.win ? 'win' : 'loss'}`);
     row.href = `/matches/${encodeURIComponent(match.id)}`;
     const champion = element('div'); champion.append(element('strong', match.name), element('small', queues[match.queue] || match.mode));

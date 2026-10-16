@@ -38,12 +38,12 @@ function render() {
   const queues = {420:'Ranked Solo / Duo',440:'Ranked Flex',450:'ARAM',400:'Normal Draft'};
   $('subtitle').textContent = `${queues[data.queue] || data.mode} · ${Math.floor(data.duration / 60)}m ${data.duration % 60}s · ${new Date(data.playedAt).toLocaleString()} · Patch ${data.patch} · ${data.id}`;
   $('rift-score').replaceChildren(scoreGauge(own.score.value, 'gauge-hero'));
-  $('comparison').textContent = own.score.comparison || own.score.reason;
+  $('comparison').textContent = `${own.score.comparison || own.score.reason}${own.score.coverage ? ` · ${own.score.coverage}` : ''}`;
   $('method').textContent = own.score.method || own.score.reason;
   $('components').replaceChildren();
   for (const c of own.score.components) {
     const card = el('article', undefined, 'component');
-    card.append(el('h3', c.name), scoreGauge(c.value, 'gauge-medium', c.name), el('p', `You: ${number(c.own)} · Comparison: ${number(c.comparison)}`, 'muted'), el('p', `${c.weight}% weight · ${c.description}`, 'muted'));
+    card.append(el('h3', c.name), scoreGauge(c.value, 'gauge-medium', c.name), el('p', `You: ${number(c.own)} ${c.unit} · ${c.targetLabel}: ${number(c.target)} ${c.unit}`, 'muted'), el('p', `${c.weight}% weight · ${c.description}`, 'muted'), el('p', `${own.score.opponentContext || 'Opponent context'}: ${number(c.opponent)} ${c.unit} (does not affect score)`, 'muted'));
     $('components').append(card);
   }
   if (!own.score.components.length) $('components').append(el('p', own.score.reason, 'muted'));

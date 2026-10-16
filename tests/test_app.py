@@ -180,8 +180,8 @@ def test_saved_profile_serves_history_without_network(monkeypatch):
     monkeypatch.setenv('RIOT_API_KEY', 'unused')
     monkeypatch.setenv('RIOT_ID', 'Test#EU')
     storage.profile('Test#EU', {'queue': 'all', 'champions': [{'championId': 1, 'name': 'Annie', 'icon': 'icon'}]})
-    storage.save_match('Test#EU', {'id': 'one', 'playedAt': 100, 'queue': 420, 'duration': 1200, 'championId': 1, 'score': 40, 'role': 'TOP'})
-    storage.save_match('Test#EU', {'id': 'two', 'playedAt': 200, 'queue': 440, 'duration': 1200, 'championId': 1, 'score': 80, 'mode': 'ARAM'})
+    storage.save_match('Test#EU', {'id': 'one', 'playedAt': 100, 'queue': 420, 'duration': 1200, 'championId': 1, 'score': 40, 'scoreVersion': '2', 'role': 'TOP'})
+    storage.save_match('Test#EU', {'id': 'two', 'playedAt': 200, 'queue': 440, 'duration': 1200, 'championId': 1, 'score': 80, 'scoreVersion': '2', 'mode': 'CLASSIC'})
     async def no_network(*args, **kwargs):
         pytest.fail('Saved history should not wait for Riot')
     monkeypatch.setattr('app.main.fetch', no_network)
@@ -218,8 +218,41 @@ def test_match_details_use_saved_data_and_reject_unknown_matches(monkeypatch):
     body = response.json()
     assert len(body['participants']) == 10
     own = next(p for p in body['participants'] if p['you'])
-    assert own['score']['value'] == 50
+    from app.scoring import score_player
+    assert own['score']['value'] == score_player(info, info['participants'][0])['value']
+    assert own['score']['version'] == '2'
     assert own['items'][0]['name'] == 'Boots'
     assert own['spells'][0]['name'] == 'Flash'
     assert own['runes'][0]['name'] == 'Press the Attack'
     assert 'puuid' not in response.text
+
+
+def test_tier_list_endpoint_queue_and_validation(monkeypatch):
+    async def fake_dashboard(queue):
+        return {'queue':queue, 'champions':[{'championId':1,'name':'Annie'}],
+                'matches':[{'championId':1,'score':80,'role':'MIDDLE','win':True}]}
+    monkeypatch.setattr('app.main.get_dashboard',fake_dashboard)
+    with TestClient(app) as client:
+        assert client.get('/tier-list').status_code == 200
+        body = client.get('/api/tier-list?queue=flex&minimum=1').json()
+        assert body['queue'] == 'flex'
+        assert body['roles'][2]['tiers'][0]['champions'][0]['name'] == 'Annie'
+        assert client.get('/api/tier-list?minimum=0').status_code == 422
+        assert client.get('/api/tier-list?queue=aram').status_code == 422
+
+
+def test_tier_list_last_30_days_filters_before_averaging(monkeypatch):
+    now = 2_000_000_000
+    monkeypatch.setattr('app.main.time.time', lambda: now)
+    async def fake_dashboard(queue):
+        return {'queue': queue, 'champions': [{'championId':1,'name':'Annie'}], 'matches': [
+            {'championId':1,'score':80,'role':'MIDDLE','playedAt':now*1000},
+            {'championId':1,'score':60,'role':'MIDDLE','playedAt':(now-30*86400)*1000},
+            {'championId':1,'score':0,'role':'MIDDLE','playedAt':(now-30*86400)*1000-1}]}
+    monkeypatch.setattr('app.main.get_dashboard', fake_dashboard)
+    with TestClient(app) as client:
+        recent = client.get('/api/tier-list?period=30d&minimum=1').json()
+        assert recent['totalGames'] == 2
+        assert recent['roles'][2]['tiers'][1]['champions'][0]['scoreStats']['average'] == 70
+        assert client.get('/api/tier-list?minimum=1').json()['totalGames'] == 3
+        assert client.get('/api/tier-list?period=invalid').status_code == 422

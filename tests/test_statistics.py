@@ -1,4 +1,4 @@
-from app.statistics import enrich_dashboard, lane_averages, score_average
+from app.statistics import enrich_dashboard, lane_averages, score_average, champion_tiers
 
 
 def test_averages_include_zero_and_exclude_unscored_invalid_values():
@@ -32,3 +32,22 @@ def test_aram_never_counts_as_a_lane_and_missing_roles_are_visible():
     assert lanes['TOP']['total'] == 0
     assert lanes['ARAM']['average'] == 80
     assert lanes['UNKNOWN']['average'] == 40
+
+
+def test_tier_boundaries_role_isolation_and_minimum_samples():
+    matches = [{'championId': i, 'score': score, 'role': 'TOP', 'win': True}
+               for i, score in enumerate([75, 60, 50, 40, 39.9], 1)]
+    matches += [{'championId': 1, 'score': 20, 'role': 'BOTTOM'},
+                {'championId': 6, 'score': None, 'role': 'TOP'},
+                {'championId': 7, 'score': 100, 'role': 'UNKNOWN'}]
+    data = {'matches': matches, 'champions': [{'championId': i, 'name': str(i)} for i in range(1,8)], 'queue':'solo'}
+    result = champion_tiers(data, 1)
+    assert len(result['roles']) == 5
+    assert result['queue'] == 'solo'
+    assert result['unknownRoleGames'] == 1
+    top = result['roles'][0]
+    assert [t['champions'][0]['championId'] for t in top['tiers']] == [1,2,3,4,5]
+    assert top['provisional'][0]['championId'] == 6
+    bot = result['roles'][3]
+    assert bot['tiers'][-1]['champions'][0]['scoreStats']['average'] == 20
+    assert all(not t['champions'] for t in champion_tiers(data, 3)['roles'][0]['tiers'])
