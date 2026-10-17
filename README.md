@@ -1,6 +1,6 @@
 # Rift Journal
 
-A local FastAPI dashboard for **Bagabondu#1909 · EUNE**, with champion mastery, saved match history, and performance totals. SQLite is created automatically; no frontend build step required.
+A local FastAPI dashboard for **League of Legends accounts on EUNE**, with champion mastery, saved match history, and performance totals. SQLite is created automatically; no frontend build step required.
 
 ## Run on Windows
 
@@ -18,8 +18,8 @@ The local `.env` file is already created and ignored by Git. Put your key after 
 
 ```dotenv
 RIOT_API_KEY=your-key-here
-RIOT_ID=Bagabondu#1909
-DUO_RIOT_ID=Bagaboanda#6969
+RIOT_ID=YourName#YourTag
+DUO_RIOT_ID=DuoName#DuoTag
 ```
 
 On a fresh clone, copy `.env.example` to `.env` first. The key is only sent from the server to Riot in the `X-Riot-Token` header. Never add it to frontend files. Updating `.env` takes effect on the next refresh without restarting the server. An explicitly configured `.env` value overrides the corresponding process environment variable.
