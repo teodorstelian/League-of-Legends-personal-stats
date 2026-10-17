@@ -13,6 +13,7 @@ function pick(c,matchup=false){
   return card;
 }
 function render(){
+  $('suggested-bans').hidden = Number($('enemy').value) !== 0;
   $('summary').textContent=`${data.roleName} · ${data.totalGames} role games · ${data.eligibleChampions} qualifying champions · ${data.period==='30d'?'Last 30 days':'All saved history'}`;
   $('suggested-picks').replaceChildren(...data.picks.map(c=>pick(c,c.matchupEligible)));
   $('picks-note').textContent=data.enemy?`Against ${data.enemy.name} · Comfort fills gaps in matchup history.`:'Comfort ranked first · Limited-data picks fill remaining places.';
@@ -26,6 +27,7 @@ async function load(){const selection={};for(const id of Object.keys(last)){sele
   }catch(error){$('status').textContent=error.message;for(const id of Object.keys(last))$(id).value=last[id];}
   finally{for(const id of [...Object.keys(last),'refresh'])$(id).disabled=false;}}
 for(const id of Object.keys(last))$(id).addEventListener('change',load);$('refresh').addEventListener('click',load);
+$('enemy').addEventListener('change',()=>{ $('suggested-bans').hidden=Number($('enemy').value)!==0; });
 $('role').disabled=true;
 window.draftRoleReady=fetch('/api/draft/defaults').then(async response=>{if(!response.ok)throw Error();const defaults=await response.json();$('role').value=defaults.role;last.role=defaults.role;}).catch(()=>{});
 window.draftRoleReady.then(load);
