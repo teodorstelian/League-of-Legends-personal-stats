@@ -95,3 +95,5 @@ The header profile switcher supports multiple EUNE Riot IDs using the same serve
 The overview includes recent form (last 20 games versus the previous 20), current and longest win/loss streaks, a linked results strip, time played, champion count, deathless games, and personal records for Rift Score, kills, assists, KDA ratio, CS/minute, and damage/minute. All use imported history for the active profile and selected queue. Record ties choose the newest match, and missing metrics are excluded individually.
 
 Draft bans now use a stable evidence pool: lane bans include all own champions in the selected role; general bans consider every enemy-team champion across all own roles. Queue and period filters apply to both. Minimum games is applied after calculating priority and therefore changes qualification only, not the score. Each group shows up to five qualified candidates and a separate watchlist of up to three below-threshold candidates. Missing history is not replaced with invented data or global meta assumptions.
+
+Calibration is a debugging tool at `/calibration`, intentionally omitted from the main navigation. Its API remains available at `/api/calibration`.

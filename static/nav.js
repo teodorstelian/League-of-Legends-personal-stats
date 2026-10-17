@@ -1,9 +1,8 @@
 const navigation = document.createElement('nav'); navigation.className = 'top-nav'; navigation.setAttribute('aria-label', 'Main navigation');
-for (const [label, href] of [['Overview','/'], ['Draft','/draft'], ['Duo','/duo'], ['Champions','/champions'], ['Tier List','/tier-list'], ['Trends','/trends'], ['Early game','/early-game'], ['Calibration','/calibration'], ['Matches','/matches']]) {
+for (const [label, href] of [['Overview','/'], ['Draft','/draft'], ['Duo','/duo'], ['Champions','/champions'], ['Tier List','/tier-list'], ['Trends','/trends'], ['Early game','/early-game'], ['Matches','/matches']]) {
   const link = document.createElement('a'); link.href = href; link.textContent = label;
   if (href === '/draft' && location.pathname === '/draft') link.setAttribute('aria-current','page');
   if (href === '/trends' && location.pathname === '/trends') link.setAttribute('aria-current','page');
-  if (href === '/calibration' && location.pathname === '/calibration') link.setAttribute('aria-current','page');
   if ((href === '/champions' && location.pathname.startsWith('/champions')) || (href === '/tier-list' && location.pathname === '/tier-list') || (href === '/' && location.pathname === '/' && !location.hash) || (href === '/matches' && location.pathname.startsWith('/matches'))) link.setAttribute('aria-current','page');
   if (href === '/early-game' && location.pathname === href) link.setAttribute('aria-current','page');
   if (href === '/duo' && location.pathname === href) link.setAttribute('aria-current','page');

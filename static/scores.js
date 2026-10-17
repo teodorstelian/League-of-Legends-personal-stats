@@ -21,14 +21,13 @@ function riftScoreSample(stats) {
   return `${stats.total} game${stats.total === 1 ? '' : 's'}${stats.total > 0 && stats.total < 5 ? ' · Small sample' : ''}`;
 }
 function renderScoreSummary(stats, lanes) {
-  document.getElementById('average-score').replaceChildren(scoreGauge(stats.average, 'gauge-large', 'Average Rift Score'));
-  document.getElementById('score-sample').textContent = riftScoreSample(stats);
   const root = document.getElementById('lane-scores'); root.replaceChildren();
-  for (const lane of lanes) {
-    const card = document.createElement('article'); card.className = 'lane-score';
+  for (const [index, lane] of [{...stats, name:'Overall'}, ...lanes].entries()) {
+    const card = document.createElement('article'); card.className = `lane-score${index === 0 ? ' overall-score' : ''}`;
     const name = document.createElement('h3'); name.textContent = lane.name;
     const value = scoreGauge(lane.average, 'gauge-medium', `${lane.name} average Rift Score`);
     const sample = document.createElement('p'); sample.className = 'muted'; sample.textContent = riftScoreSample(lane);
+    if (index === 0) { value.id = 'average-score'; sample.id = 'score-sample'; }
     card.append(name, value, sample); root.append(card);
   }
   const legend = document.createElement('p'); legend.className = 'score-legend';

@@ -20,8 +20,8 @@ def test_missing_key(monkeypatch):
         page = client.get('/')
         assert page.status_code == 200
         assert page.headers['cache-control'] == 'no-cache'
-        assert '/static/app.js?v=overview-3' in page.text
-        assert client.get('/static/app.js?v=overview-3').headers['cache-control'] == 'no-cache'
+        assert '/static/app.js?v=queue-summary-7' in page.text
+        assert client.get('/static/app.js?v=queue-summary-7').headers['cache-control'] == 'no-cache'
         response = client.get('/api/dashboard')
     assert response.status_code == 503
     assert response.json()['setup'] is True

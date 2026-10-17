@@ -18,7 +18,8 @@ function renderChampions() {
   const collection = expanded || query ? data.champions.map(c => ({...c, ...(data.mastery.find(m => m.championId === c.championId) || {points: 0, level: 0})})).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)) : data.mastery;
   const champions = collection.filter(c => c.name.toLocaleLowerCase().includes(query));
   $('champions').replaceChildren();
-  for (const [index, champion] of champions.slice(0, expanded || query ? undefined : 8).entries()) {
+  $('champions').classList.toggle('mastery-top-five', !expanded && !query);
+  for (const [index, champion] of champions.slice(0, expanded || query ? undefined : 5).entries()) {
     const card = element('a', undefined, 'champion');
     card.href = `/champions/${champion.championId}`;
     if (champion.icon) card.append(icon(champion.icon, champion.name));
@@ -29,15 +30,13 @@ function renderChampions() {
     $('champions').append(card);
   }
   if (!champions.length) $('champions').append(element('p', 'No champions found.', 'muted'));
-  $('show-all').hidden = !!query || data.mastery.length <= 8;
-  $('show-all').textContent = expanded ? 'Show top champions' : `Browse all ${data.champions.length} champions`;
+  $('show-all').hidden = !!query || data.mastery.length <= 5;
+  $('show-all').textContent = expanded ? 'Show top 5' : `Browse all ${data.champions.length} champions`;
 }
 function render() {
   renderScoreSummary(data.scoreStats, data.lanes);
   renderOverview();
   $('queue').value = data.queue;
-  const context = `${data.matches.length} saved games · ${queueNames[data.queue]}`;
-  $('queue-context').textContent = context;
   $('match-context').textContent = `Latest ${Math.min(5,data.matches.length)} · ${queueNames[data.queue]}`;
   $('ranked').replaceChildren();
   if (data.ranked === null) {
@@ -64,7 +63,7 @@ function render() {
   $('kda').textContent = matches.length ? ['kills', 'deaths', 'assists'].map(k => (matches.reduce((n, m) => n + m[k], 0) / matches.length).toFixed(1)).join(' / ') : '—';
   $('total-mastery').textContent = number(data.mastery.reduce((n, c) => n + c.points, 0));
   $('champion-count').textContent = `${data.mastery.length} champions played`;
-  $('updated').textContent = `Profile updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} · Use Check new games to update history`;
+  $('updated').textContent = `Profile updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
   renderChampions(); $('matches').replaceChildren();
   const queues = {420: 'Ranked Solo / Duo', 440: 'Ranked Flex', 450: 'ARAM', 400: 'Normal Draft', 490: 'Quickplay', 1700: 'Arena'};
   for (const match of matches.slice(0, 5)) {
@@ -94,10 +93,19 @@ async function load() {
     if (data) $('queue').value = data.queue;
     $('status').className = 'error'; $('status').textContent = error.message;
     if (data) $('status').append(element('p', 'Showing the previously loaded stats below.'));
-  } finally { $('queue').disabled = false; $('refresh').disabled = false; $('refresh').textContent = '↻ Refresh stats'; }
+  } finally { $('queue').disabled = false; $('refresh').disabled = false; $('refresh').textContent = '↻ Refresh'; }
 }
 $('queue').addEventListener('change', load);
-$('refresh').addEventListener('click', load);
+$('refresh').addEventListener('click', async () => {
+  $('refresh').disabled=true;$('refresh').textContent='Checking…';
+  try {
+    const response=await fetch('/api/sync/check',{method:'POST'});
+    if(!response.ok)throw Error('Unable to check new games. Try again.');
+    await load();
+    await updateSync();
+  } catch(error){$('status').hidden=false;$('status').textContent=error.message;}
+  finally{$('refresh').disabled=false;$('refresh').textContent='↻ Refresh';}
+});
 $('search').addEventListener('input', renderChampions);
 $('show-all').addEventListener('click', () => { expanded = !expanded; renderChampions(); });
 load();
