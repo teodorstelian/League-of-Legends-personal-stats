@@ -97,3 +97,5 @@ The overview includes recent form (last 20 games versus the previous 20), curren
 Draft bans now use a stable evidence pool: lane bans include all own champions in the selected role; general bans consider every enemy-team champion across all own roles. Queue and period filters apply to both. Minimum games is applied after calculating priority and therefore changes qualification only, not the score. Each group shows up to five qualified candidates and a separate watchlist of up to three below-threshold candidates. Missing history is not replaced with invented data or global meta assumptions.
 
 Calibration is a debugging tool at `/calibration`, intentionally omitted from the main navigation. Its API remains available at `/api/calibration`.
+
+Match syncing is manual: press Refresh to check recent games and process queued history/details. Starting the app or switching profiles does not start or resume match imports. Queue 100 older increases the requested history target; press Refresh to process it. Pause sync is no longer shown.

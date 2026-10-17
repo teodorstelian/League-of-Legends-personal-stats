@@ -164,8 +164,14 @@ def test_worker_checkpoint_and_restart(monkeypatch):
                 'win': True, 'kills': 1, 'deaths': 2, 'assists': 3}]}}
     monkeypatch.setattr('app.main.fetch', fake_fetch)
     async def run():
+        import time
+        task = asyncio.create_task(sync_worker(None))
+        await asyncio.sleep(0)
+        state = storage.state('Test#EU')
+        state['refreshRequest'] = time.time_ns()
+        storage.save_state('Test#EU', state)
         with pytest.raises(asyncio.CancelledError):
-            await sync_worker(None)
+            await task
     asyncio.run(run())
     assert len(storage.matches('Test#EU')) == 20
     assert storage.state('Test#EU')['offset'] == 20
@@ -175,6 +181,22 @@ def test_worker_checkpoint_and_restart(monkeypatch):
     assert offsets == [20]
     assert len(storage.matches('Test#EU')) == 20
     assert storage.state('Test#EU')['end'] == boundary
+
+
+def test_worker_does_not_sync_on_startup(monkeypatch):
+    from app import storage
+    monkeypatch.setattr('app.main.configuration', lambda: ('test-key','Test#EU'))
+    state=storage.state('Test#EU');state['refreshRequest']=1;storage.save_state('Test#EU',state)
+    async def no_fetch(*args):pytest.fail('Startup must not fetch Riot data')
+    monkeypatch.setattr('app.main.fetch',no_fetch)
+    monkeypatch.setattr('app.main.dashboard',no_fetch)
+    async def run():
+        task=asyncio.create_task(sync_worker(None))
+        await asyncio.sleep(.02)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):await task
+    asyncio.run(run())
+    assert storage.matches('Test#EU') == []
 
 
 def test_saved_profile_serves_history_without_network(monkeypatch):

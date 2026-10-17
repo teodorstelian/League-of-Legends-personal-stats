@@ -92,6 +92,9 @@ def configuration():
 
 
 async def sync_worker(client):
+    started = time.time_ns()
+    active_requests = {}
+    completed_requests = {}
     last_recent = {}
     last_profile = {}
     reset_recent = set()
@@ -103,6 +106,13 @@ async def sync_worker(client):
             storage.save_state(player, state)
             reset_recent.add(player)
         try:
+            refresh_request = state.get('refreshRequest', 0)
+            if refresh_request > started and refresh_request != completed_requests.get(player):
+                active_requests[player] = refresh_request
+            if player not in active_requests:
+                sync_status.update(status='idle', message='Manual sync. Press Refresh to update.')
+                await asyncio.sleep(2)
+                continue
             if not key or state['paused']:
                 sync_status.update(status='paused' if state['paused'] else 'setup', message='Sync paused.' if state['paused'] else 'Add your Riot API key.')
                 await asyncio.sleep(2)
@@ -118,7 +128,8 @@ async def sync_worker(client):
             pending = storage.pending(player) if not backfill and not recent else []
             hydrate = bool(pending)
             if not backfill and not recent and not hydrate:
-                sync_status.update(status='idle', message='Idle. Use Check new games to update; automatic periodic fetching is off.')
+                completed_requests[player] = active_requests.pop(player)
+                sync_status.update(status='idle', message='Manual sync. Press Refresh to update.')
                 await asyncio.sleep(2)
                 continue
             sync_status.update(status='syncing', message='Checking new games…' if recent else 'Importing older games…')
