@@ -1,0 +1,160 @@
+import json
+import sqlite3
+from pathlib import Path
+from .history_policy import eligible_summary, eligible_info
+from .scoring import score_player, VERSION
+
+DB = Path(__file__).resolve().parent.parent / 'data/journal.sqlite3'
+
+
+def connect():
+    DB.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(DB)
+    db.execute('CREATE TABLE IF NOT EXISTS matches (player TEXT, id TEXT, played INTEGER, body TEXT, PRIMARY KEY(player,id))')
+    db.execute('CREATE TABLE IF NOT EXISTS state (player TEXT PRIMARY KEY, body TEXT)')
+    db.execute('CREATE TABLE IF NOT EXISTS profiles (player TEXT PRIMARY KEY, body TEXT)')
+    db.execute('CREATE TABLE IF NOT EXISTS details (player TEXT, id TEXT, body TEXT, PRIMARY KEY(player,id))')
+    db.execute('CREATE TABLE IF NOT EXISTS timelines (id TEXT PRIMARY KEY, body TEXT)')
+    db.execute('CREATE TABLE IF NOT EXISTS settings (name TEXT PRIMARY KEY, body TEXT)')
+    return db
+
+
+def setting(name, value=None):
+    with connect() as db:
+        if value is not None:
+            db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)', (name, json.dumps(value)))
+            return value
+        row = db.execute('SELECT body FROM settings WHERE name=?', (name,)).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def timeline(match_id, value=None):
+    with connect() as db:
+        if value is not None:
+            db.execute('INSERT OR REPLACE INTO timelines VALUES (?,?)', (match_id, json.dumps(value)))
+            return value
+        row = db.execute('SELECT body FROM timelines WHERE id=?', (match_id,)).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def timeline_rows(player):
+    """Only timelines belonging to the player's currently eligible history."""
+    with connect() as db:
+        rows = db.execute('SELECT m.body,d.body,t.body FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id LEFT JOIN timelines t ON t.id=m.id WHERE m.player=? ORDER BY m.played DESC', (player,)).fetchall()
+    return [(json.loads(m), json.loads(d) if d else None, json.loads(t) if t else None) for m, d, t in rows if eligible_summary(json.loads(m))]
+
+
+def match_details(player):
+    with connect() as db:
+        rows = db.execute('SELECT m.body,d.body FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id WHERE m.player=? ORDER BY m.played DESC', (player,)).fetchall()
+    return [(json.loads(m), json.loads(d) if d else None) for m, d in rows if eligible_summary(json.loads(m))]
+
+
+def profile(player, value=None):
+    with connect() as db:
+        if value is not None:
+            db.execute('INSERT OR REPLACE INTO profiles VALUES (?,?)', (player, json.dumps(value)))
+            return value
+        row = db.execute('SELECT body FROM profiles WHERE player=?', (player,)).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def state(player):
+    with connect() as db:
+        row = db.execute('SELECT body FROM state WHERE player=?', (player,)).fetchone()
+    return json.loads(row[0]) if row else {'target': 100, 'offset': 0, 'paused': False, 'exhausted': False, 'historyPolicy': 2}
+
+
+def save_state(player, value):
+    with connect() as db:
+        db.execute('INSERT OR REPLACE INTO state VALUES (?,?)', (player, json.dumps(value)))
+
+
+def save_match(player, match):
+    if not eligible_summary(match):
+        return False
+    with connect() as db:
+        db.execute('INSERT OR REPLACE INTO matches VALUES (?,?,?,?)', (player, match['id'], match['playedAt'], json.dumps(match)))
+    return True
+
+
+def matches(player, queue=None):
+    with connect() as db:
+        rows = db.execute('SELECT m.body,d.body FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id WHERE m.player=? ORDER BY m.played DESC,m.id', (player,)).fetchall()
+    result = []
+    for body, detail_body in rows:
+        match = json.loads(body)
+        if detail_body:
+            detail = json.loads(detail_body)
+            own = next((p for p in detail['raw']['info']['participants'] if p.get('puuid') == detail['puuid']), {})
+            match['role'] = own.get('teamPosition') or 'UNKNOWN'
+            match['items'] = [own.get(f'item{i}', 0) for i in range(7)]
+            match['itemPatch'] = '.'.join(detail['raw']['info'].get('gameVersion', '').split('.')[:2])
+            match['damage'] = own.get('totalDamageDealtToChampions')
+            match['vision'] = own.get('visionScore')
+            match['enemyChampionIds'] = sorted({p['championId'] for p in detail['raw']['info']['participants'] if p.get('teamId') != own.get('teamId')})
+            role = own.get('teamPosition')
+            opponents = [p for p in detail['raw']['info']['participants'] if role in ('TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY') and p.get('teamId') != own.get('teamId') and p.get('teamPosition') == role]
+            match['opponentId'] = opponents[0]['championId'] if len(opponents) == 1 else None
+            match['matchupStatus'] = 'matched' if len(opponents) == 1 else 'ambiguous'
+        if eligible_summary(match):
+            result.append(match)
+    return [m for m in result if queue is None or m['queue'] == queue]
+
+
+def detail(player, match_id, value=None):
+    with connect() as db:
+        if value is not None:
+            if not eligible_info(value['raw']['info']):
+                return None
+            db.execute('INSERT OR REPLACE INTO details VALUES (?,?,?)', (player, match_id, json.dumps(value)))
+            return value
+        row = db.execute('SELECT body FROM details WHERE player=? AND id=?', (player, match_id)).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def pending(player, limit=20):
+    with connect() as db:
+        return [r[0] for r in db.execute('SELECT m.id FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id WHERE m.player=? AND d.id IS NULL ORDER BY m.played DESC LIMIT ?', (player, limit))]
+
+
+def apply_history_policy():
+    """Remove excluded history and reset pagination once for ranked-only imports."""
+    removed = 0
+    with connect() as db:
+        catalogs = {p: {c['championId']: c.get('tags') for c in json.loads(body).get('champions', [])} for p, body in db.execute('SELECT player,body FROM profiles').fetchall()}
+        for player, match_id, body, raw_body in db.execute('SELECT m.player,m.id,m.body,d.body FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id').fetchall():
+            keep = eligible_summary(json.loads(body))
+            if raw_body:
+                keep = keep and eligible_info(json.loads(raw_body)['raw']['info'])
+            if not keep:
+                db.execute('DELETE FROM matches WHERE player=? AND id=?', (player, match_id))
+                db.execute('DELETE FROM details WHERE player=? AND id=?', (player, match_id))
+                removed += 1
+            elif raw_body:
+                value = json.loads(body)
+                detail = json.loads(raw_body)
+                info = detail['raw']['info']
+                own = next((p for p in info['participants'] if p.get('puuid') == detail['puuid']), None)
+                if own:
+                    score = score_player(info, own, catalogs.get(player, {}).get(own['championId']))
+                    value['score'] = score['value']
+                    value['archetype'] = score.get('archetype', 'Unscored')
+                    value['scoreVersion'] = VERSION
+                    db.execute('UPDATE matches SET body=? WHERE player=? AND id=?', (json.dumps(value), player, match_id))
+            elif json.loads(body).get('scoreVersion') != VERSION:
+                value = json.loads(body)
+                value.update(score=None, scoreVersion=VERSION, archetype='Awaiting details')
+                db.execute('UPDATE matches SET body=? WHERE player=? AND id=?', (json.dumps(value), player, match_id))
+        db.execute('DELETE FROM details WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.player=details.player AND m.id=details.id)')
+        for player, body in db.execute('SELECT player,body FROM profiles').fetchall():
+            value = json.loads(body)
+            value['matches'] = []
+            db.execute('UPDATE profiles SET body=? WHERE player=?', (json.dumps(value), player))
+        for player, body in db.execute('SELECT player,body FROM state').fetchall():
+            value = json.loads(body)
+            if value.get('historyPolicy') != 2:
+                value.update(offset=0, recent_offset=0, exhausted=False, historyPolicy=2)
+                value.pop('end', None)
+                db.execute('UPDATE state SET body=? WHERE player=?', (json.dumps(value), player))
+    return removed
