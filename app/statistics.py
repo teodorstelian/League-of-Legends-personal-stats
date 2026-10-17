@@ -19,8 +19,10 @@ def lane_averages(matches):
 
 
 def enrich_dashboard(data):
+    from .overview import overview_stats
     data = dict(data)
     matches = data['matches']
+    data['overview'] = overview_stats(matches)
     groups = {}
     for match in matches:
         groups.setdefault(match['championId'], []).append(match)

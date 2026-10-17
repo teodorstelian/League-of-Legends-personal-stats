@@ -199,7 +199,11 @@ async def profile_context(request, call_next):
     # Pin every request to one profile even if the selection changes mid-request.
     token = request_player.set(configuration()[1])
     try:
-        return await call_next(request)
+        response = await call_next(request)
+        if request.url.path.startswith('/static/') or response.headers.get('content-type', '').startswith('text/html'):
+            # Local UI changes must not leave new HTML running an older cached script.
+            response.headers['Cache-Control'] = 'no-cache'
+        return response
     finally:
         request_player.reset(token)
 

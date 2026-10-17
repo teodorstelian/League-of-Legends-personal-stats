@@ -21,13 +21,17 @@ document.querySelectorAll('.champion-directory thead th').forEach((th,index)=>{
 function node(tag, text, className) { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (className) n.className = className; return n; }
 function render() {
   if (!data) return;
+  const selectedRole = $('role').value;
+  const matches = data.matches.filter(m => selectedRole === 'all' || m.role === selectedRole);
   const groups = new Map();
-  for (const m of data.matches) { if (!groups.has(m.championId)) groups.set(m.championId, []); groups.get(m.championId).push(m); }
+  for (const m of matches) { if (!groups.has(m.championId)) groups.set(m.championId, []); groups.get(m.championId).push(m); }
   const mastery = new Map(data.mastery.map(m => [m.championId, m.points]));
   const query = $('search').value.trim().toLocaleLowerCase();
   const rows = data.champions.map(c => {
     const games = groups.get(c.championId) || [], wins = games.filter(m => m.win).length;
-    return {...c, games, wins, winRate: games.length ? wins / games.length * 100 : null, points: mastery.get(c.championId) || 0};
+    const scores = games.map(m => m.score).filter(s => typeof s === 'number' && Number.isFinite(s) && s >= 0 && s <= 100);
+    const scoreStats = {total: games.length, scored: scores.length, average: scores.length ? Math.round(scores.reduce((a,b) => a+b,0) / scores.length * 10) / 10 : null};
+    return {...c, scoreStats, games, wins, winRate: games.length ? wins / games.length * 100 : null, points: mastery.get(c.championId) || 0};
   }).filter(c => c.name.toLocaleLowerCase().includes(query) && (!$('played').checked || c.games.length) && c.scoreStats.scored >= Number($('minimum').value));
   const [sort,direction] = $('sort').value.split('-');
   const multiplier=direction==='asc'?1:-1;
@@ -53,7 +57,7 @@ function render() {
     button.parentElement.setAttribute('aria-sort',active?(direction==='asc'?'ascending':'descending'):'none');
     const label=columns.find(c=>c[0]===button.dataset.column)[1];button.textContent=`${label} ${active?(direction==='asc'?'↑':'↓'):'↕'}`;
   });
-  $('count').textContent = `${rows.length} of ${data.champions.length} champions · ${data.matches.length} saved games · ${displayedQueue === 'all' ? 'All ranked' : displayedQueue === 'solo' ? 'Solo / Duo' : 'Flex'}`;
+  $('count').textContent = `${rows.length} of ${data.champions.length} champions · ${matches.length} games · ${displayedQueue === 'all' ? 'All ranked' : displayedQueue === 'solo' ? 'Solo / Duo' : 'Flex'} · ${$('role').selectedOptions[0].textContent}`;
   $('champion-rows').replaceChildren();
   for (const c of rows) {
     const row = node('tr'), name = node('td'), link = node('a', undefined, 'directory-champion'); link.href = `/champions/${c.championId}`;
@@ -78,7 +82,7 @@ async function load() {
   } catch(error) { $('status').textContent = error.message; $('queue').value = displayedQueue; }
   finally { $('refresh').disabled = false; $('queue').disabled = false; }
 }
-for (const id of ['search','sort','minimum','played']) $(id).addEventListener(id === 'search' ? 'input' : 'change', render);
+for (const id of ['search','sort','minimum','played','role']) $(id).addEventListener(id === 'search' ? 'input' : 'change', render);
 $('queue').addEventListener('change', load); $('refresh').addEventListener('click', load);
 load();
 setInterval(() => { if (document.visibilityState === 'visible' && !$('refresh').disabled) load(); }, 30000);

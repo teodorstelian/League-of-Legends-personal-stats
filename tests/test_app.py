@@ -17,7 +17,11 @@ def test_missing_key(monkeypatch):
     monkeypatch.setattr('app.main.load_dotenv', lambda *a, **kw: None)
     monkeypatch.delenv('RIOT_API_KEY', raising=False)
     with TestClient(app) as client:
-        assert client.get('/').status_code == 200
+        page = client.get('/')
+        assert page.status_code == 200
+        assert page.headers['cache-control'] == 'no-cache'
+        assert '/static/app.js?v=overview-2' in page.text
+        assert client.get('/static/app.js?v=overview-2').headers['cache-control'] == 'no-cache'
         response = client.get('/api/dashboard')
     assert response.status_code == 503
     assert response.json()['setup'] is True

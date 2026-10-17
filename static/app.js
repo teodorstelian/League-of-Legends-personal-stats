@@ -34,6 +34,7 @@ function renderChampions() {
 }
 function render() {
   renderScoreSummary(data.scoreStats, data.lanes);
+  renderOverview();
   $('queue').value = data.queue;
   const context = `${data.matches.length} saved games · ${queueNames[data.queue]}`;
   $('queue-context').textContent = context;
@@ -62,7 +63,7 @@ function render() {
   $('kda').textContent = matches.length ? ['kills', 'deaths', 'assists'].map(k => (matches.reduce((n, m) => n + m[k], 0) / matches.length).toFixed(1)).join(' / ') : '—';
   $('total-mastery').textContent = number(data.mastery.reduce((n, c) => n + c.points, 0));
   $('champion-count').textContent = `${data.mastery.length} champions played`;
-  $('updated').textContent = `Profile updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} · History updates automatically`;
+  $('updated').textContent = `Profile updated ${new Date(data.updatedAt * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} · Use Check new games to update history`;
   renderChampions(); $('matches').replaceChildren();
   const queues = {420: 'Ranked Solo / Duo', 440: 'Ranked Flex', 450: 'ARAM', 400: 'Normal Draft', 490: 'Quickplay', 1700: 'Arena'};
   for (const match of matches.slice(0, 5)) {
@@ -99,3 +100,21 @@ $('refresh').addEventListener('click', load);
 $('search').addEventListener('input', renderChampions);
 $('show-all').addEventListener('click', () => { expanded = !expanded; renderChampions(); });
 load();
+function renderOverview(){
+ const o=data.overview;
+ $('overview-momentum').replaceChildren();
+ const r=o.recent,p=o.previous;
+ function card(label,value,note,cls=''){const n=element('article',undefined,'overview-stat');n.append(element('p',label,'eyebrow'),element('strong',value,cls),element('small',note,'muted'));$('overview-momentum').append(n);}
+ card('CURRENT STREAK',o.currentStreak.games?`${o.currentStreak.games}${o.currentStreak.win?'W':'L'}`:'—',`Longest: ${o.longestWinStreak} wins · ${o.longestLossStreak} losses`,o.currentStreak.win===true?'positive':o.currentStreak.win===false?'negative':'');
+ card(`LAST ${r.games} GAMES`,r.winRate===null?'—':`${r.winRate}%`,`${r.wins}W / ${r.games-r.wins}L${p.games?` · Previous ${p.games}: ${p.winRate}%`:''}`);
+ const score=element('article',undefined,'overview-stat');score.append(element('p','RECENT RIFT SCORE','eyebrow'),scoreGauge(r.score,'gauge-medium'),element('small',`${r.scoreGames} games${p.score!==null?` · Previous ${p.games}: ${p.score}`:''}`,'muted'));$('overview-momentum').append(score);
+ card('TIME ON THE RIFT',`${o.hours}h`,`${o.champions} champions · ${o.deathless} deathless games`);
+ $('overview-results').replaceChildren();
+ for(const m of o.results){const a=element('a',m.win?'W':'L',`overview-result ${m.win?'result-win':'result-loss'}`);a.href=`/matches/${encodeURIComponent(m.id)}`;a.title=`${m.champion||'Match'} · ${m.win?'Victory':'Defeat'} · ${new Date(m.playedAt).toLocaleDateString()}`;a.setAttribute('aria-label',a.title);$('overview-results').append(a);}
+ if(!o.results.length)$('overview-results').append(element('span','Import ranked games to build your form.','muted'));
+ $('overview-records').replaceChildren();
+ for(const record of o.records){const m=record.match,card=element(m?'a':'article',undefined,'overview-record');if(m)card.href=`/matches/${encodeURIComponent(m.id)}`;card.append(element('p',record.label.toUpperCase(),'eyebrow'));
+ if(record.key==='score')card.append(scoreGauge(record.value,'gauge-medium'));else{const value=element('div',undefined,'record-value');value.append(element('strong',record.value===null?'—':number(record.value)),element('span',record.unit,'muted'));card.append(value);}
+ if(m){const player=element('div',undefined,'record-player');if(m.icon)player.append(icon(m.icon,''));const text=element('div');text.append(element('strong',m.name||m.champion||'Champion'),element('small',`${m.kills??0} / ${m.deaths??0} / ${m.assists??0} · ${m.win?'Victory':'Defeat'}`,'muted'));player.append(text);card.append(player,element('small',`${new Date(m.playedAt).toLocaleDateString()} · ${record.sample} eligible games →`,'muted'));}else card.append(element('p','No recorded data yet.','muted'));
+ $('overview-records').append(card);}
+}
