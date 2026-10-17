@@ -14,7 +14,40 @@ def connect():
     db.execute('CREATE TABLE IF NOT EXISTS state (player TEXT PRIMARY KEY, body TEXT)')
     db.execute('CREATE TABLE IF NOT EXISTS profiles (player TEXT PRIMARY KEY, body TEXT)')
     db.execute('CREATE TABLE IF NOT EXISTS details (player TEXT, id TEXT, body TEXT, PRIMARY KEY(player,id))')
+    db.execute('CREATE TABLE IF NOT EXISTS timelines (id TEXT PRIMARY KEY, body TEXT)')
+    db.execute('CREATE TABLE IF NOT EXISTS settings (name TEXT PRIMARY KEY, body TEXT)')
     return db
+
+
+def setting(name, value=None):
+    with connect() as db:
+        if value is not None:
+            db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)', (name, json.dumps(value)))
+            return value
+        row = db.execute('SELECT body FROM settings WHERE name=?', (name,)).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def timeline(match_id, value=None):
+    with connect() as db:
+        if value is not None:
+            db.execute('INSERT OR REPLACE INTO timelines VALUES (?,?)', (match_id, json.dumps(value)))
+            return value
+        row = db.execute('SELECT body FROM timelines WHERE id=?', (match_id,)).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def timeline_rows(player):
+    """Only timelines belonging to the player's currently eligible history."""
+    with connect() as db:
+        rows = db.execute('SELECT m.body,d.body,t.body FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id LEFT JOIN timelines t ON t.id=m.id WHERE m.player=? ORDER BY m.played DESC', (player,)).fetchall()
+    return [(json.loads(m), json.loads(d) if d else None, json.loads(t) if t else None) for m, d, t in rows if eligible_summary(json.loads(m))]
+
+
+def match_details(player):
+    with connect() as db:
+        rows = db.execute('SELECT m.body,d.body FROM matches m LEFT JOIN details d ON m.player=d.player AND m.id=d.id WHERE m.player=? ORDER BY m.played DESC', (player,)).fetchall()
+    return [(json.loads(m), json.loads(d) if d else None) for m, d in rows if eligible_summary(json.loads(m))]
 
 
 def profile(player, value=None):

@@ -301,8 +301,26 @@ def test_general_matchups_endpoint(monkeypatch):
     async def fake_dashboard(queue):return {'queue':queue,'matches':[],'champions':[]}
     monkeypatch.setattr('app.main.get_dashboard',fake_dashboard)
     with TestClient(app) as client:
-        assert client.get('/matchups').status_code==200
+        assert client.get('/matchups',follow_redirects=False).status_code==404
+        page=client.get('/draft')
+        assert page.status_code==200
+        assert 'id="matchups"' in page.text
+        assert 'draft-view-nav' not in page.text
+        assert 'evidence-role' not in page.text
+        assert 'id="evidence-pairs"' in page.text
         body=client.get('/api/matchups?queue=flex&minimum=1').json()
         assert body['queue']=='flex' and body['bans']==[] and body['banMinimum']==3
         assert client.get('/api/matchups?minimum=0').status_code==422
         assert client.get('/api/matchups?period=bad').status_code==422
+
+
+def test_draft_endpoint_filters_and_validation(monkeypatch):
+    async def fake_dashboard(queue):return {'queue':queue,'matches':[],'champions':[{'championId':1,'name':'Annie'}]}
+    monkeypatch.setattr('app.main.get_dashboard',fake_dashboard)
+    with TestClient(app) as client:
+        assert client.get('/draft').status_code==200
+        body=client.get('/api/draft?queue=solo&role=UTILITY&enemy=1').json()
+        assert body['queue']=='solo' and body['role']=='UTILITY' and body['fallback']
+        assert client.get('/api/draft?minimum=1').status_code==422
+        assert client.get('/api/draft?enemy=9999').status_code==404
+        assert client.get('/api/draft?role=all').status_code==422

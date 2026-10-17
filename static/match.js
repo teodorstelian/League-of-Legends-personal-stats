@@ -86,7 +86,7 @@ async function load() {
     const id = location.pathname.split('/').filter(Boolean).pop();
     const response = await fetch(`/api/matches/${encodeURIComponent(id)}`), body = await response.json();
     if (!response.ok) throw new Error(body.message || 'Unable to load match.');
-    data = body; render(); $('content').hidden = false; $('status').hidden = !data.warning;
+    data = body; render(); loadTimeline(); $('content').hidden = false; $('status').hidden = !data.warning;
     if (data.warning) $('status').textContent = data.warning;
   } catch(error) { $('status').textContent = error.message; $('retry').hidden = false; }
 }

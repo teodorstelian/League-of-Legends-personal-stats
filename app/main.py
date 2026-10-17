@@ -4,6 +4,7 @@ import time
 import sqlite3
 from contextlib import suppress
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from typing import Literal
 from pathlib import Path
 from urllib.parse import quote
@@ -13,6 +14,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 from . import storage
 from .scoring import score_player, VERSION
 from .calibration import calibration_report
@@ -20,6 +22,7 @@ from .statistics import enrich_dashboard, score_average, lane_averages, champion
 from .history_policy import eligible_info
 from .trends import performance_trends
 from .matchups import champion_matchups, all_matchups
+from .draft import draft_report
 
 ROOT = Path(__file__).resolve().parent.parent
 cache = {}
@@ -27,11 +30,65 @@ lock = asyncio.Lock()
 request_lock = asyncio.Lock()
 next_request = 0
 sync_status = {'status': 'starting', 'message': ''}
+timeline_lock = asyncio.Lock()
+timeline_import_status = {'message': ''}
+request_player = ContextVar('request_player', default=None)
+
+
+async def cached_timeline(client, match_id, key):
+    async with timeline_lock:
+        raw = storage.timeline(match_id)
+        if raw is None:
+            if not key:
+                raise RiotError('Add your API key to load timelines.', 503)
+            try:
+                raw = await fetch(client, f'https://europe.api.riotgames.com/lol/match/v5/matches/{quote(match_id, safe="")}/timeline', key)
+            except RiotError as exc:
+                if exc.status != 404:
+                    raise
+                raw = {'unavailable': True}
+            storage.timeline(match_id, raw)
+        return raw
+
+
+async def timeline_worker(client):
+    while True:
+        key, player = configuration()
+        state = storage.state(player)
+        if not state.get('timelineActive'):
+            await asyncio.sleep(2)
+            continue
+        pending = state.get('timelinePending', [])
+        if not pending:
+            state['timelineActive'] = False
+            storage.save_state(player, state)
+            timeline_import_status['message'] = 'Timeline import complete.'
+            continue
+        match_id = pending[0]
+        try:
+            timeline_import_status['message'] = 'Importing saved timelines…'
+            await cached_timeline(client, match_id, key)
+            current = storage.state(player)
+            current['timelinePending'] = [mid for mid in current.get('timelinePending', []) if mid != match_id]
+            storage.save_state(player, current)
+        except RiotError as exc:
+            timeline_import_status['message'] = exc.message
+            if exc.status == 503:
+                current = storage.state(player)
+                current['timelineActive'] = False
+                storage.save_state(player, current)
+            await asyncio.sleep(5)
+        except (ValueError, KeyError, TypeError, sqlite3.Error):
+            current = storage.state(player)
+            current['timelineActive'] = False
+            storage.save_state(player, current)
+            timeline_import_status['message'] = 'Timeline import stopped. Resume to retry.'
 
 
 def configuration():
     load_dotenv(ROOT / '.env', override=True)
-    return os.getenv('RIOT_API_KEY', '').strip(), os.getenv('RIOT_ID', 'Bagabondu#1909').strip()
+    default = os.getenv('RIOT_ID', 'Bagabondu#1909').strip()
+    return os.getenv('RIOT_API_KEY', '').strip(), request_player.get() or storage.setting('active_profile') or default
 
 
 async def sync_worker(client):
@@ -84,7 +141,7 @@ async def sync_worker(client):
                     break
                 if match_id not in known or storage.detail(player, match_id) is None:
                     raw = await fetch(client, f'{base}/lol/match/v5/matches/{quote(match_id, safe="")}', key)
-                    summary = match_summary(raw, account['puuid'])
+                    summary = match_summary(raw, account['puuid'], player)
                     if summary:
                         storage.save_match(player, summary)
                         storage.detail(player, match_id, {'raw': raw, 'puuid': account['puuid']})
@@ -121,16 +178,81 @@ async def lifespan(app):
     async with httpx.AsyncClient(timeout=15) as client:
         app.state.client = client
         task = asyncio.create_task(sync_worker(client))
+        timeline_task = asyncio.create_task(timeline_worker(client))
         try:
             yield
         finally:
             task.cancel()
+            timeline_task.cancel()
             with suppress(asyncio.CancelledError):
                 await task
+            with suppress(asyncio.CancelledError):
+                await timeline_task
 
 
 app = FastAPI(title="Rift Journal", lifespan=lifespan)
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
+
+
+@app.middleware('http')
+async def profile_context(request, call_next):
+    # Pin every request to one profile even if the selection changes mid-request.
+    token = request_player.set(configuration()[1])
+    try:
+        return await call_next(request)
+    finally:
+        request_player.reset(token)
+
+
+class ProfileSelection(BaseModel):
+    riotId: str = Field(min_length=3, max_length=100)
+
+
+@app.get('/duo')
+async def duo_page():
+    return FileResponse(ROOT / 'static/duo.html')
+
+
+@app.get('/api/duo')
+async def get_duo(partner: str='', queue: Literal['all','solo','flex']='all', period: Literal['all','30d']='all'):
+    from .duo import duo_report
+    _, active = configuration()
+    profiles = await get_profiles()
+    others = [p['riotId'] for p in profiles['profiles'] if p['riotId'] != active]
+    preferred = os.getenv('DUO_RIOT_ID', '').strip()
+    partner = partner or next((p for p in others if p.casefold() == preferred.casefold()), next(iter(others), ''))
+    if partner not in others:
+        return JSONResponse({'message':'Select a different saved profile as your duo partner.'},status_code=400)
+    return {**duo_report(storage.match_details(active),storage.match_details(partner),[storage.profile(active) or {},storage.profile(partner) or {}],queue,period,time.time()),
+        'profiles':[active,partner]}
+
+
+@app.get('/api/profiles')
+async def get_profiles():
+    _, active = configuration()
+    entries = []
+    configured = [os.getenv('RIOT_ID', 'Bagabondu#1909').strip(), os.getenv('DUO_RIOT_ID', '').strip()]
+    for entry in [*configured, *(storage.setting('profile_list') or []), active]:
+        if entry and entry.casefold() not in [p.casefold() for p in entries]:
+            entries.append(entry)
+    return {'active': active, 'profiles': [{'riotId': p, 'region': 'EUNE'} for p in entries]}
+
+
+@app.post('/api/profiles/select')
+async def select_profile(selection: ProfileSelection):
+    riot_id = selection.riotId.strip()
+    if '#' not in riot_id or not all(part.strip() for part in riot_id.rsplit('#', 1)):
+        return JSONResponse({'message': 'Enter a Riot ID in Name#Tag format.'}, status_code=400)
+    profiles = await get_profiles()
+    entries = [p['riotId'] for p in profiles['profiles']]
+    riot_id = next((p for p in entries if p.casefold() == riot_id.casefold()), riot_id)
+    if riot_id not in entries:
+        entries.append(riot_id)
+    storage.setting('profile_list', entries)
+    storage.setting('active_profile', riot_id)
+    sync_status.update(status='starting', message='Loading selected profile…')
+    timeline_import_status['message'] = ''
+    return {'active': riot_id}
 
 
 @app.get('/')
@@ -212,7 +334,7 @@ async def fetch_response(client, url, key=None):
         raise RiotError('Riot returned an unexpected response. Please try again.') from None
 
 
-def match_summary(match, puuid):
+def match_summary(match, puuid, owner=None):
     info = match['info']
     if not eligible_info(info):
         return None
@@ -220,7 +342,7 @@ def match_summary(match, puuid):
     if not player:
         return None
     duration = info.get('gameDuration', 0)
-    catalog = (storage.profile(configuration()[1]) or {}).get('champions', [])
+    catalog = (storage.profile(owner or configuration()[1]) or {}).get('champions', [])
     tags = next((c.get('tags') for c in catalog if c['championId'] == player['championId']), None)
     score = score_player(info, player, tags)
     return {
@@ -288,15 +410,13 @@ async def dashboard(client, key, riot_id, queue='all'):
 
 @app.get('/api/dashboard')
 async def get_dashboard(queue: Literal['all', 'solo', 'flex'] = 'all'):
-    load_dotenv(ROOT / '.env', override=True)
-    key = os.getenv('RIOT_API_KEY', '').strip()
-    riot_id = os.getenv('RIOT_ID', 'Bagabondu#1909').strip()
+    key, riot_id = configuration()
     if not key:
         return JSONResponse({'message': 'Add your Riot API key to RIOT_API_KEY in the .env file, then click Refresh.', 'setup': True}, status_code=503)
     if '#' not in riot_id or not all(riot_id.rsplit('#', 1)):
         return JSONResponse({'message': 'RIOT_ID must include both name and tagline, for example Bagabondu#1909.'}, status_code=400)
     async with lock:
-        cache_key = ('dashboard', queue)
+        cache_key = ('dashboard', riot_id, queue)
         cached = cache.get(cache_key)
         saved_profile = storage.profile(riot_id)
         if saved_profile or (cached and cached[0] > time.monotonic() and cached[1:3] == (key, riot_id)):
@@ -392,12 +512,69 @@ async def get_match(match_id: str):
                 raise RiotError('This player was not found in the match.', 404)
             storage.save_match(player, summary)
             stored = storage.detail(player, match_id, {'raw': raw, 'puuid': account['puuid']})
-        return await build_match_details(stored)
+        return await build_match_details(stored, player)
     except RiotError as exc:
         return JSONResponse({'message': exc.message}, status_code=exc.status)
 
 
-async def build_match_details(stored):
+@app.get('/api/matches/{match_id}/timeline')
+async def get_timeline(match_id: str):
+    from .timeline import timeline_report
+    key, player = configuration()
+    if not any(m['id'] == match_id for m in storage.matches(player)):
+        return JSONResponse({'message': 'Match not found in your saved history.'}, status_code=404)
+    stored = storage.detail(player, match_id)
+    if not stored:
+        return JSONResponse({'message': 'Load match details before its timeline.'}, status_code=409)
+    try:
+        raw = await cached_timeline(app.state.client, match_id, key)
+        if raw.get('unavailable'):
+            return JSONResponse({'message': 'Riot has no timeline available for this match.'}, status_code=404)
+        return timeline_report(raw, stored)
+    except RiotError as exc:
+        return JSONResponse({'message': exc.message}, status_code=exc.status)
+
+
+@app.get('/early-game')
+async def early_game_page():
+    return FileResponse(ROOT / 'static/early-game.html')
+
+
+@app.get('/api/early-game')
+async def get_early_game(queue: Literal['all','solo','flex']='all', role: Literal['all','TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY']='all', champion: int=Query(default=0, ge=0), period: Literal['all','30d']='all'):
+    from .early_game import early_game_report
+    _, player = configuration()
+    profile = storage.profile(player) or {}
+    return {**early_game_report(storage.timeline_rows(player), time.time(), queue, role, champion, period), 'catalog': [{'championId': c['championId'], 'name': c['name'], 'icon': c.get('icon')} for c in profile.get('champions', [])]}
+
+
+@app.get('/api/timeline-import')
+async def get_timeline_import():
+    _, player = configuration()
+    state = storage.state(player)
+    rows = storage.timeline_rows(player)
+    return {'active': bool(state.get('timelineActive')), 'remaining': len(state.get('timelinePending', [])), 'total': len(rows),
+        'cached': sum(bool(t and not t.get('unavailable')) for _, _, t in rows),
+        'unavailable': sum(bool(t and t.get('unavailable')) for _, _, t in rows),
+        'message': timeline_import_status['message']}
+
+
+@app.post('/api/timeline-import/{action}')
+async def control_timeline_import(action: Literal['start','pause']):
+    _, player = configuration()
+    state = storage.state(player)
+    if action == 'start':
+        state['timelinePending'] = [m['id'] for m, d, t in storage.timeline_rows(player) if d and t is None]
+        state['timelineActive'] = bool(state['timelinePending'])
+        timeline_import_status['message'] = 'Timeline import queued.' if state['timelineActive'] else 'All available saved match details have cached timelines.'
+    else:
+        state['timelineActive'] = False
+        timeline_import_status['message'] = 'Timeline import paused. An in-flight request may finish.'
+    storage.save_state(player, state)
+    return await get_timeline_import()
+
+
+async def build_match_details(stored, owner=None):
     raw, puuid = stored['raw'], stored['puuid']
     info = raw['info']
     patch = '.'.join(info.get('gameVersion', '').split('.')[:2])
@@ -416,7 +593,7 @@ async def build_match_details(stored):
         except RiotError:
             warning = 'Some item, spell, or rune labels could not be loaded. Raw IDs remain available.'
     base, items, spells, runes = cache.get(asset_key, ('', {}, {}, {}))
-    profile = storage.profile(configuration()[1]) or {}
+    profile = storage.profile(owner or configuration()[1]) or {}
     champions = {c['championId']: c for c in profile.get('champions', [])}
     def asset(value, catalog, kind):
         entry = catalog.get(str(value), catalog.get(value, {}))
@@ -456,9 +633,19 @@ async def calibration_page():
     return FileResponse(ROOT / 'static/calibration.html')
 
 
-@app.get('/matchups')
-async def matchups_page():
-    return FileResponse(ROOT / 'static/matchups.html')
+@app.get('/draft')
+async def draft_page():
+    return FileResponse(ROOT / 'static/draft.html')
+
+
+@app.get('/api/draft')
+async def get_draft(queue: Literal['all','solo','flex']='all', role: Literal['TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY']='TOP', enemy: int=Query(default=0,ge=0), minimum: int=Query(default=3,ge=3,le=1000), period: Literal['all','30d']='all'):
+    data=await get_dashboard(queue)
+    if isinstance(data,JSONResponse):
+        return data
+    if enemy and not any(c['championId']==enemy for c in data['champions']):
+        return JSONResponse({'message':'Enemy champion not found.'},status_code=404)
+    return draft_report(data,time.time(),role,enemy,minimum,period)
 
 
 @app.get('/api/matchups')
