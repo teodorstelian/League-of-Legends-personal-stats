@@ -87,11 +87,12 @@ def matches(player, queue=None):
         if detail_body:
             detail = json.loads(detail_body)
             own = next((p for p in detail['raw']['info']['participants'] if p.get('puuid') == detail['puuid']), {})
-            match.setdefault('role', own.get('teamPosition') or 'UNKNOWN')
+            match['role'] = own.get('teamPosition') or 'UNKNOWN'
             match['items'] = [own.get(f'item{i}', 0) for i in range(7)]
             match['itemPatch'] = '.'.join(detail['raw']['info'].get('gameVersion', '').split('.')[:2])
             match['damage'] = own.get('totalDamageDealtToChampions')
             match['vision'] = own.get('visionScore')
+            match['enemyChampionIds'] = sorted({p['championId'] for p in detail['raw']['info']['participants'] if p.get('teamId') != own.get('teamId')})
             role = own.get('teamPosition')
             opponents = [p for p in detail['raw']['info']['participants'] if role in ('TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY') and p.get('teamId') != own.get('teamId') and p.get('teamPosition') == role]
             match['opponentId'] = opponents[0]['championId'] if len(opponents) == 1 else None

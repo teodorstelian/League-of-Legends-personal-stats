@@ -44,6 +44,7 @@ function render() {
     $('ranked').append(element('p', `Ranked standings unavailable: ${data.rankWarning}`, 'muted'));
   } else for (const rank of data.ranked) {
     const card = element('article', undefined, 'rank-card');
+    card.dataset.tier = rank.tier || 'UNRANKED';
     card.append(element('p', `RANKED ${rank.queue.toUpperCase()}`, 'eyebrow'));
     if (rank.tier) {
       const tier = rank.tier.charAt(0) + rank.tier.slice(1).toLowerCase();

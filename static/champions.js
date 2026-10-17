@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-let data, displayedQueue = 'all';
+let data, displayedQueue = 'all', displayedRole = 'all';
 const columns = [
   ['name','Champion', 'Champion name'], ['score','Avg Rift Score','Average Rift Score'],
   ['samples','Games','Games played'], ['winRate','Win rate','Win rate'],
@@ -73,16 +73,18 @@ function render() {
   if (!rows.length) { const row = node('tr'), cell = node('td','No champions match these filters.'); cell.colSpan = 7; row.append(cell); $('champion-rows').append(row); }
 }
 async function load() {
-  $('refresh').disabled = true; $('queue').disabled = true; $('status').textContent = 'Loading champion stats…';
+  $('refresh').disabled = true; $('queue').disabled = true; $('role').disabled = true; $('status').textContent = 'Loading champion stats…';
   const selected = $('queue').value;
   try {
-    const response = await fetch(`/api/dashboard?queue=${encodeURIComponent(selected)}`), body = await response.json();
+    const selectedRole = $('role').value;
+    const response = await fetch(`/api/champion-pool?${new URLSearchParams({queue:selected,role:selectedRole})}`, {cache:'no-store'}), body = await response.json();
     if (!response.ok) throw new Error(body.message || 'Unable to load champions.');
-    data = body; displayedQueue = selected; render(); $('status').textContent = '';
-  } catch(error) { $('status').textContent = error.message; $('queue').value = displayedQueue; }
-  finally { $('refresh').disabled = false; $('queue').disabled = false; }
+    data = body; displayedQueue = selected; displayedRole = body.role; render(); $('status').textContent = '';
+  } catch(error) { $('status').textContent = error.message; $('queue').value = displayedQueue; $('role').value = displayedRole; }
+  finally { $('refresh').disabled = false; $('queue').disabled = false; $('role').disabled = false; }
 }
-for (const id of ['search','sort','minimum','played','role']) $(id).addEventListener(id === 'search' ? 'input' : 'change', render);
+for (const id of ['search','sort','minimum','played']) $(id).addEventListener(id === 'search' ? 'input' : 'change', render);
+$('role').addEventListener('change', load);
 $('queue').addEventListener('change', load); $('refresh').addEventListener('click', load);
 load();
 setInterval(() => { if (document.visibilityState === 'visible' && !$('refresh').disabled) load(); }, 30000);

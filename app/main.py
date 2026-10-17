@@ -438,6 +438,15 @@ async def get_dashboard(queue: Literal['all', 'solo', 'flex'] = 'all'):
         return enrich_dashboard(data)
 
 
+@app.get('/api/champion-pool')
+async def get_champion_pool(queue: Literal['all','solo','flex']='all', role: Literal['all','TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY']='all'):
+    data = await get_dashboard(queue)
+    if isinstance(data, JSONResponse):
+        return data
+    matches = [m for m in data['matches'] if role == 'all' or m.get('role') == role]
+    return enrich_dashboard({**data, 'matches': matches, 'role': role})
+
+
 @app.get('/api/champions/{champion_id}')
 async def get_champion(champion_id: int, queue: Literal['all', 'solo', 'flex'] = 'all'):
     data = await get_dashboard(queue)
@@ -650,6 +659,13 @@ async def get_draft(queue: Literal['all','solo','flex']='all', role: Literal['TO
     if enemy and not any(c['championId']==enemy for c in data['champions']):
         return JSONResponse({'message':'Enemy champion not found.'},status_code=404)
     return draft_report(data,time.time(),role,enemy,minimum,period)
+
+
+@app.get('/api/draft/defaults')
+async def get_draft_defaults():
+    from .draft import most_played_role
+    _, player = configuration()
+    return {'role':most_played_role(storage.matches(player))}
 
 
 @app.get('/api/matchups')

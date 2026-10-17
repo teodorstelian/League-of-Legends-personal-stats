@@ -20,8 +20,8 @@ def test_missing_key(monkeypatch):
         page = client.get('/')
         assert page.status_code == 200
         assert page.headers['cache-control'] == 'no-cache'
-        assert '/static/app.js?v=overview-2' in page.text
-        assert client.get('/static/app.js?v=overview-2').headers['cache-control'] == 'no-cache'
+        assert '/static/app.js?v=overview-3' in page.text
+        assert client.get('/static/app.js?v=overview-3').headers['cache-control'] == 'no-cache'
         response = client.get('/api/dashboard')
     assert response.status_code == 503
     assert response.json()['setup'] is True
@@ -197,6 +197,25 @@ def test_saved_profile_serves_history_without_network(monkeypatch):
     assert body['scoreStats']['average'] == 40
     assert body['champions'][0]['scoreStats']['average'] == 40
     assert body['lanes'][0]['average'] == 40
+
+
+def test_champion_pool_recalculates_stats_for_selected_role(monkeypatch):
+    from app.statistics import enrich_dashboard
+    source={'queue':'all','champions':[{'championId':17,'name':'Teemo'}],'mastery':[], 'matches':[
+        {'id':'top','championId':17,'role':'TOP','score':30,'win':False},
+        {'id':'support','championId':17,'role':'UTILITY','score':90,'win':True}]}
+    async def fake_dashboard(queue): return enrich_dashboard({**source,'queue':queue})
+    monkeypatch.setattr('app.main.get_dashboard',fake_dashboard)
+    with TestClient(app) as client:
+        top=client.get('/api/champion-pool?role=TOP').json()
+        support=client.get('/api/champion-pool?role=UTILITY').json()
+        all_roles=client.get('/api/champion-pool').json()
+        assert client.get('/api/champion-pool?role=bad').status_code==422
+    assert top['champions'][0]['scoreStats']['average']==30
+    assert support['champions'][0]['scoreStats']['average']==90
+    assert all_roles['champions'][0]['scoreStats']['average']==60
+    assert top['matches'][0]['win'] is False and len(top['matches'])==1
+    assert support['role']=='UTILITY' and support['matches'][0]['id']=='support'
 
 
 def test_match_details_use_saved_data_and_reject_unknown_matches(monkeypatch):

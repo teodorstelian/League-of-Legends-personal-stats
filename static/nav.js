@@ -17,7 +17,7 @@ const profileSelect = document.createElement('select'); profileSelect.setAttribu
 const profileAdd = document.createElement('button'); profileAdd.textContent = '+ Add profile'; profileAdd.type = 'button';
 const profileStatus = document.createElement('span'); profileStatus.setAttribute('role', 'status');
 profileLabel.append(profileSelect); profileBar.append(profileLabel, profileAdd, profileStatus);
-document.querySelector('header').after(profileBar);
+document.querySelector('header').append(profileBar);
 async function chooseProfile(riotId) {
   profileSelect.disabled = true; profileAdd.disabled = true; profileStatus.textContent = 'Switching…';
   try {
