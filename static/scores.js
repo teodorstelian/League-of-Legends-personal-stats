@@ -3,13 +3,13 @@ function scoreColor(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '#96a49b';
   return value < 40 ? '#f08b87' : value < 50 ? '#efb56c' : value < 60 ? '#dfcf77' : value < 75 ? '#9cda9a' : '#6ed7cc';
 }
-function scoreGauge(score, size = '', label = 'Rift Score') {
+function scoreGauge(score, size = '', label = 'Rift Score', maximum = 100) {
   const gauge = document.createElement('div'); gauge.className = `match-gauge ${size}`;
   const scored = typeof score === 'number' && Number.isFinite(score);
-  const value = scored ? Math.min(100, Math.max(0, score)) : 0;
-  gauge.style.setProperty('--score-angle', `${value * 3.6}deg`);
+  const value = scored ? Math.min(maximum, Math.max(0, score)) : 0;
+  gauge.style.setProperty('--score-angle', `${value / maximum * 360}deg`);
   gauge.style.setProperty('--score-color', scoreColor(score));
-  gauge.setAttribute('role', 'img'); gauge.setAttribute('aria-label', scored ? `${label} ${value.toFixed(1)} out of 100` : `${label} unavailable`);
+  gauge.setAttribute('role', 'img'); gauge.setAttribute('aria-label', scored ? `${label} ${value.toFixed(1)} out of ${maximum}` : `${label} unavailable`);
   gauge.title = gauge.getAttribute('aria-label');
   const number = document.createElement('span'); number.textContent = scored ? value.toFixed(1) : '—'; gauge.append(number);
   return gauge;

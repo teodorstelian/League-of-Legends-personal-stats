@@ -1,0 +1,1169 @@
+{
+  "version": "4",
+  "checks": {
+    "invalidScores": 0,
+    "savedScoreMismatches": 0,
+    "staleVersions": 0,
+    "monotonicFailures": 0,
+    "missingDetails": 0,
+    "ownScoresChecked": 1074,
+    "monotonicChecks": 3222
+  },
+  "profiles": {
+    "Bagabondu#1909": {
+      "overall": {
+        "games": 676,
+        "mean": 45.31,
+        "wins": 336,
+        "winMean": 52.08,
+        "lossMean": 38.62,
+        "outcomeAUC": 0.744
+      },
+      "roles": {
+        "BOTTOM": {
+          "games": 227,
+          "mean": 40.81,
+          "wins": 116,
+          "winMean": 48.0,
+          "lossMean": 33.3,
+          "outcomeAUC": 0.758
+        },
+        "JUNGLE": {
+          "games": 44,
+          "mean": 50.25,
+          "wins": 21,
+          "winMean": 56.0,
+          "lossMean": 45.01,
+          "outcomeAUC": 0.783
+        },
+        "MIDDLE": {
+          "games": 116,
+          "mean": 44.29,
+          "wins": 58,
+          "winMean": 52.2,
+          "lossMean": 36.39,
+          "outcomeAUC": 0.775
+        },
+        "TOP": {
+          "games": 205,
+          "mean": 48.79,
+          "wins": 104,
+          "winMean": 55.57,
+          "lossMean": 41.8,
+          "outcomeAUC": 0.77
+        },
+        "UTILITY": {
+          "games": 84,
+          "mean": 47.8,
+          "wins": 37,
+          "winMean": 52.64,
+          "lossMean": 43.99,
+          "outcomeAUC": 0.705
+        }
+      },
+      "archetypes": {
+        "Damage support": {
+          "games": 3,
+          "mean": 68.3,
+          "wins": 2,
+          "winMean": 68.85,
+          "lossMean": 67.2,
+          "outcomeAUC": 0.5
+        },
+        "Fighter": {
+          "games": 26,
+          "mean": 40.69,
+          "wins": 11,
+          "winMean": 49.65,
+          "lossMean": 34.13,
+          "outcomeAUC": 0.788
+        },
+        "Mage carry": {
+          "games": 118,
+          "mean": 42.19,
+          "wins": 62,
+          "winMean": 50.48,
+          "lossMean": 33.02,
+          "outcomeAUC": 0.795
+        },
+        "Marksman carry": {
+          "games": 295,
+          "mean": 44.31,
+          "wins": 151,
+          "winMean": 50.63,
+          "lossMean": 37.67,
+          "outcomeAUC": 0.727
+        },
+        "Split-pusher": {
+          "games": 37,
+          "mean": 50.94,
+          "wins": 21,
+          "winMean": 60.08,
+          "lossMean": 38.94,
+          "outcomeAUC": 0.875
+        },
+        "Tank": {
+          "games": 116,
+          "mean": 48.48,
+          "wins": 54,
+          "winMean": 54.97,
+          "lossMean": 42.83,
+          "outcomeAUC": 0.77
+        },
+        "Tank support": {
+          "games": 24,
+          "mean": 44.06,
+          "wins": 7,
+          "winMean": 48.2,
+          "lossMean": 42.35,
+          "outcomeAUC": 0.672
+        },
+        "Utility support": {
+          "games": 57,
+          "mean": 48.3,
+          "wins": 28,
+          "winMean": 52.59,
+          "lossMean": 44.15,
+          "outcomeAUC": 0.698
+        }
+      }
+    },
+    "Bagaboanda#6969": {
+      "overall": {
+        "games": 398,
+        "mean": 62.07,
+        "wins": 207,
+        "winMean": 66.75,
+        "lossMean": 57.0,
+        "outcomeAUC": 0.721
+      },
+      "roles": {
+        "BOTTOM": {
+          "games": 1,
+          "mean": 33.5,
+          "wins": 0,
+          "winMean": null,
+          "lossMean": 33.5,
+          "outcomeAUC": null
+        },
+        "JUNGLE": {
+          "games": 1,
+          "mean": 28.4,
+          "wins": 0,
+          "winMean": null,
+          "lossMean": 28.4,
+          "outcomeAUC": null
+        },
+        "MIDDLE": {
+          "games": 22,
+          "mean": 53.1,
+          "wins": 10,
+          "winMean": 57.45,
+          "lossMean": 49.47,
+          "outcomeAUC": 0.642
+        },
+        "TOP": {
+          "games": 4,
+          "mean": 49.07,
+          "wins": 1,
+          "winMean": 62.8,
+          "lossMean": 44.5,
+          "outcomeAUC": 0.667
+        },
+        "UTILITY": {
+          "games": 370,
+          "mean": 62.91,
+          "wins": 196,
+          "winMean": 67.25,
+          "lossMean": 58.03,
+          "outcomeAUC": 0.72
+        }
+      },
+      "archetypes": {
+        "Damage support": {
+          "games": 293,
+          "mean": 65.09,
+          "wins": 158,
+          "winMean": 68.19,
+          "lossMean": 61.46,
+          "outcomeAUC": 0.697
+        },
+        "Mage carry": {
+          "games": 27,
+          "mean": 51.29,
+          "wins": 11,
+          "winMean": 57.94,
+          "lossMean": 46.72,
+          "outcomeAUC": 0.688
+        },
+        "Tank": {
+          "games": 1,
+          "mean": 41.5,
+          "wins": 0,
+          "winMean": null,
+          "lossMean": 41.5,
+          "outcomeAUC": null
+        },
+        "Tank support": {
+          "games": 7,
+          "mean": 50.33,
+          "wins": 5,
+          "winMean": 56.02,
+          "lossMean": 36.1,
+          "outcomeAUC": 1.0
+        },
+        "Utility support": {
+          "games": 70,
+          "mean": 55.06,
+          "wins": 33,
+          "winMean": 64.42,
+          "lossMean": 46.71,
+          "outcomeAUC": 0.871
+        }
+      }
+    }
+  },
+  "allParticipants": {
+    "games": 7420,
+    "mean": 51.81,
+    "wins": 3710,
+    "winMean": 59.38,
+    "lossMean": 44.24,
+    "outcomeAUC": 0.75
+  },
+  "uniqueMatches": 742,
+  "topScoreOnWinningTeamPercent": 87.7,
+  "roles": {
+    "": {
+      "games": 1,
+      "mean": 23.2,
+      "wins": 0,
+      "winMean": null,
+      "lossMean": 23.2,
+      "outcomeAUC": null
+    },
+    "BOTTOM": {
+      "games": 1484,
+      "mean": 47.45,
+      "wins": 742,
+      "winMean": 56.39,
+      "lossMean": 38.52,
+      "outcomeAUC": 0.768
+    },
+    "JUNGLE": {
+      "games": 1484,
+      "mean": 53.96,
+      "wins": 742,
+      "winMean": 62.28,
+      "lossMean": 45.64,
+      "outcomeAUC": 0.801
+    },
+    "MIDDLE": {
+      "games": 1484,
+      "mean": 51.02,
+      "wins": 742,
+      "winMean": 58.84,
+      "lossMean": 43.19,
+      "outcomeAUC": 0.743
+    },
+    "TOP": {
+      "games": 1484,
+      "mean": 51.97,
+      "wins": 742,
+      "winMean": 59.1,
+      "lossMean": 44.84,
+      "outcomeAUC": 0.734
+    },
+    "UTILITY": {
+      "games": 1483,
+      "mean": 54.68,
+      "wins": 742,
+      "winMean": 60.3,
+      "lossMean": 49.06,
+      "outcomeAUC": 0.721
+    }
+  },
+  "archetypes": {
+    "Assassin carry": {
+      "games": 593,
+      "mean": 53.08,
+      "wins": 291,
+      "winMean": 60.63,
+      "lossMean": 45.81,
+      "outcomeAUC": 0.736
+    },
+    "Damage support": {
+      "games": 713,
+      "mean": 59.76,
+      "wins": 366,
+      "winMean": 64.59,
+      "lossMean": 54.66,
+      "outcomeAUC": 0.708
+    },
+    "Fighter": {
+      "games": 1752,
+      "mean": 50.99,
+      "wins": 858,
+      "winMean": 59.44,
+      "lossMean": 42.88,
+      "outcomeAUC": 0.774
+    },
+    "Mage carry": {
+      "games": 1014,
+      "mean": 51.2,
+      "wins": 509,
+      "winMean": 59.13,
+      "lossMean": 43.2,
+      "outcomeAUC": 0.743
+    },
+    "Marksman carry": {
+      "games": 1724,
+      "mean": 49.1,
+      "wins": 870,
+      "winMean": 57.68,
+      "lossMean": 40.37,
+      "outcomeAUC": 0.759
+    },
+    "Role baseline (unmapped tags)": {
+      "games": 1,
+      "mean": 46.1,
+      "wins": 1,
+      "winMean": 46.1,
+      "lossMean": null,
+      "outcomeAUC": null
+    },
+    "Split-pusher": {
+      "games": 243,
+      "mean": 58.88,
+      "wins": 125,
+      "winMean": 67.05,
+      "lossMean": 50.23,
+      "outcomeAUC": 0.791
+    },
+    "Tank": {
+      "games": 610,
+      "mean": 51.83,
+      "wins": 314,
+      "winMean": 58.02,
+      "lossMean": 45.27,
+      "outcomeAUC": 0.784
+    },
+    "Tank support": {
+      "games": 232,
+      "mean": 47.36,
+      "wins": 105,
+      "winMean": 53.68,
+      "lossMean": 42.14,
+      "outcomeAUC": 0.781
+    },
+    "Utility support": {
+      "games": 538,
+      "mean": 51.11,
+      "wins": 271,
+      "winMean": 57.06,
+      "lossMean": 45.06,
+      "outcomeAUC": 0.74
+    }
+  },
+  "duration": [
+    {
+      "band": "Under 20",
+      "games": 240,
+      "mean": 37.37,
+      "wins": 120,
+      "winMean": 49.87,
+      "lossMean": 24.87,
+      "outcomeAUC": 0.899
+    },
+    {
+      "band": "20\u201330",
+      "games": 2680,
+      "mean": 48.49,
+      "wins": 1340,
+      "winMean": 59.07,
+      "lossMean": 37.92,
+      "outcomeAUC": 0.836
+    },
+    {
+      "band": "30\u201340",
+      "games": 3720,
+      "mean": 53.96,
+      "wins": 1860,
+      "winMean": 59.89,
+      "lossMean": 48.03,
+      "outcomeAUC": 0.713
+    },
+    {
+      "band": "40+",
+      "games": 780,
+      "mean": 57.39,
+      "wins": 390,
+      "winMean": 60.96,
+      "lossMean": 53.83,
+      "outcomeAUC": 0.636
+    }
+  ],
+  "examples": [
+    {
+      "score": 26.1,
+      "win": false,
+      "role": "JUNGLE",
+      "style": "Tank",
+      "duration": 1508,
+      "match": "EUN1_4017526326",
+      "champion": "Skarner",
+      "team": 100,
+      "components": [
+        {
+          "name": "Champion damage",
+          "weight": 10.0,
+          "value": 37.0,
+          "own": 354.59,
+          "target": 552.5,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0.0,
+              "value": 0
+            },
+            {
+              "own": 138.125,
+              "value": 0
+            },
+            {
+              "own": 276.25,
+              "value": 20
+            },
+            {
+              "own": 414.375,
+              "value": 50
+            },
+            {
+              "own": 552.5,
+              "value": 80
+            },
+            {
+              "own": 690.625,
+              "value": 100
+            }
+          ],
+          "opponent": 614.12,
+          "unit": "per minute",
+          "description": "Champion damage per minute",
+          "contribution": 3.7,
+          "missedPoints": 6.3
+        },
+        {
+          "name": "Kill participation",
+          "weight": 25.0,
+          "value": 8.0,
+          "own": 20.0,
+          "target": 80,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 12.0,
+              "value": 0
+            },
+            {
+              "own": 32.0,
+              "value": 20
+            },
+            {
+              "own": 52.0,
+              "value": 50
+            },
+            {
+              "own": 72.0,
+              "value": 80
+            },
+            {
+              "own": 88.0,
+              "value": 100
+            }
+          ],
+          "opponent": 51.61,
+          "unit": "%",
+          "description": "(Kills + assists) / team kills x 100",
+          "contribution": 2.0,
+          "missedPoints": 23.0
+        },
+        {
+          "name": "Survival",
+          "weight": 20.0,
+          "value": 26.4,
+          "own": 0.28,
+          "target": 0.4,
+          "targetLabel": "Zero-score threshold",
+          "benchmarks": [
+            {
+              "own": 0.0,
+              "value": 100
+            },
+            {
+              "own": 0.05,
+              "value": 100
+            },
+            {
+              "own": 0.12,
+              "value": 80
+            },
+            {
+              "own": 0.2,
+              "value": 50
+            },
+            {
+              "own": 0.3,
+              "value": 20
+            },
+            {
+              "own": 0.4,
+              "value": 0
+            }
+          ],
+          "opponent": 0.08,
+          "unit": "deaths/min",
+          "description": "Low death rates can earn full credit; benchmark curve falls to zero at the reference rate",
+          "contribution": 5.3,
+          "missedPoints": 14.7
+        },
+        {
+          "name": "Economy",
+          "weight": 10.0,
+          "value": 26.8,
+          "own": 309.71,
+          "target": 480,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 192.0,
+              "value": 0
+            },
+            {
+              "own": 288.0,
+              "value": 20
+            },
+            {
+              "own": 384.0,
+              "value": 50
+            },
+            {
+              "own": 480,
+              "value": 90
+            },
+            {
+              "own": 528.0,
+              "value": 100
+            }
+          ],
+          "opponent": 424.06,
+          "unit": "gold/min",
+          "description": "Gold earned per minute",
+          "contribution": 2.7,
+          "missedPoints": 7.3
+        },
+        {
+          "name": "Vision",
+          "weight": 10.0,
+          "value": 26.1,
+          "own": 0.68,
+          "target": 1.5,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0.0,
+              "value": 0
+            },
+            {
+              "own": 0.225,
+              "value": 0
+            },
+            {
+              "own": 0.6,
+              "value": 20
+            },
+            {
+              "own": 0.975,
+              "value": 50
+            },
+            {
+              "own": 1.5,
+              "value": 80
+            },
+            {
+              "own": 1.95,
+              "value": 100
+            }
+          ],
+          "opponent": 0.6,
+          "unit": "vision/min",
+          "description": "Vision score per minute",
+          "contribution": 2.6,
+          "missedPoints": 7.4
+        },
+        {
+          "name": "Objective pressure",
+          "weight": 10.0,
+          "value": 41.3,
+          "own": 387.53,
+          "target": 1600,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 160.0,
+              "value": 20
+            },
+            {
+              "own": 480.0,
+              "value": 50
+            },
+            {
+              "own": 960.0,
+              "value": 80
+            },
+            {
+              "own": 1600,
+              "value": 100
+            }
+          ],
+          "opponent": 1275.52,
+          "unit": "damage/min",
+          "description": "Objective damage per minute; does not measure setup or shotcalling",
+          "contribution": 4.1,
+          "missedPoints": 5.9
+        },
+        {
+          "name": "Crowd control",
+          "weight": 15.0,
+          "value": 37.7,
+          "own": 0.95,
+          "target": 1.5,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0.0,
+              "value": 0
+            },
+            {
+              "own": 0.6,
+              "value": 20
+            },
+            {
+              "own": 1.2,
+              "value": 50
+            },
+            {
+              "own": 1.95,
+              "value": 80
+            },
+            {
+              "own": 3.0,
+              "value": 100
+            }
+          ],
+          "opponent": 0.76,
+          "unit": "CC seconds/min",
+          "description": "Time crowd controlling others; damage taken is not rewarded",
+          "contribution": 5.7,
+          "missedPoints": 9.3
+        }
+      ]
+    },
+    {
+      "score": 63.7,
+      "win": true,
+      "role": "TOP",
+      "style": "Fighter",
+      "duration": 1508,
+      "match": "EUN1_4017526326",
+      "champion": "Urgot",
+      "team": 200,
+      "components": [
+        {
+          "name": "Champion damage",
+          "weight": 20.0,
+          "value": 42.5,
+          "own": 687.85,
+          "target": 1000,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 250.0,
+              "value": 0
+            },
+            {
+              "own": 500.0,
+              "value": 20
+            },
+            {
+              "own": 750.0,
+              "value": 50
+            },
+            {
+              "own": 1000,
+              "value": 80
+            },
+            {
+              "own": 1250.0,
+              "value": 100
+            }
+          ],
+          "opponent": 540.6,
+          "unit": "per minute",
+          "description": "Champion damage per minute",
+          "contribution": 8.5,
+          "missedPoints": 11.5
+        },
+        {
+          "name": "Kill participation",
+          "weight": 20.0,
+          "value": 49.4,
+          "own": 41.94,
+          "target": 65,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 9.75,
+              "value": 0
+            },
+            {
+              "own": 26.0,
+              "value": 20
+            },
+            {
+              "own": 42.25,
+              "value": 50
+            },
+            {
+              "own": 58.5,
+              "value": 80
+            },
+            {
+              "own": 71.5,
+              "value": 100
+            }
+          ],
+          "opponent": 26.67,
+          "unit": "%",
+          "description": "(Kills + assists) / team kills x 100",
+          "contribution": 9.9,
+          "missedPoints": 10.1
+        },
+        {
+          "name": "Survival",
+          "weight": 20.0,
+          "value": 91.5,
+          "own": 0.08,
+          "target": 0.4,
+          "targetLabel": "Zero-score threshold",
+          "benchmarks": [
+            {
+              "own": 0.0,
+              "value": 100
+            },
+            {
+              "own": 0.05,
+              "value": 100
+            },
+            {
+              "own": 0.12,
+              "value": 80
+            },
+            {
+              "own": 0.2,
+              "value": 50
+            },
+            {
+              "own": 0.3,
+              "value": 20
+            },
+            {
+              "own": 0.4,
+              "value": 0
+            }
+          ],
+          "opponent": 0.32,
+          "unit": "deaths/min",
+          "description": "Low death rates can earn full credit; benchmark curve falls to zero at the reference rate",
+          "contribution": 18.3,
+          "missedPoints": 1.7
+        },
+        {
+          "name": "Economy",
+          "weight": 15.0,
+          "value": 81.0,
+          "own": 477.45,
+          "target": 500,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 200.0,
+              "value": 0
+            },
+            {
+              "own": 300.0,
+              "value": 20
+            },
+            {
+              "own": 400.0,
+              "value": 50
+            },
+            {
+              "own": 500,
+              "value": 90
+            },
+            {
+              "own": 550.0,
+              "value": 100
+            }
+          ],
+          "opponent": 332.82,
+          "unit": "gold/min",
+          "description": "Gold earned per minute",
+          "contribution": 12.2,
+          "missedPoints": 2.9
+        },
+        {
+          "name": "Vision",
+          "weight": 10.0,
+          "value": 56.8,
+          "own": 0.88,
+          "target": 1.2,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0.0,
+              "value": 0
+            },
+            {
+              "own": 0.18,
+              "value": 0
+            },
+            {
+              "own": 0.48,
+              "value": 20
+            },
+            {
+              "own": 0.78,
+              "value": 50
+            },
+            {
+              "own": 1.2,
+              "value": 80
+            },
+            {
+              "own": 1.56,
+              "value": 100
+            }
+          ],
+          "opponent": 0.6,
+          "unit": "vision/min",
+          "description": "Vision score per minute",
+          "contribution": 5.7,
+          "missedPoints": 4.3
+        },
+        {
+          "name": "Objective pressure",
+          "weight": 15.0,
+          "value": 60.9,
+          "own": 409.26,
+          "target": 1000,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 100.0,
+              "value": 20
+            },
+            {
+              "own": 300.0,
+              "value": 50
+            },
+            {
+              "own": 600.0,
+              "value": 80
+            },
+            {
+              "own": 1000,
+              "value": 100
+            }
+          ],
+          "opponent": 401.3,
+          "unit": "damage/min",
+          "description": "Objective damage per minute; does not measure setup or shotcalling",
+          "contribution": 9.1,
+          "missedPoints": 5.9
+        }
+      ]
+    },
+    {
+      "score": 50.9,
+      "win": true,
+      "role": "UTILITY",
+      "style": "Damage support",
+      "duration": 1508,
+      "match": "EUN1_4017526326",
+      "champion": "Lux",
+      "team": 200,
+      "components": [
+        {
+          "name": "Champion damage",
+          "weight": 30.0,
+          "value": 42.7,
+          "own": 551.26,
+          "target": 800,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 200.0,
+              "value": 0
+            },
+            {
+              "own": 400.0,
+              "value": 20
+            },
+            {
+              "own": 600.0,
+              "value": 50
+            },
+            {
+              "own": 800,
+              "value": 80
+            },
+            {
+              "own": 1000.0,
+              "value": 100
+            }
+          ],
+          "opponent": 449.16,
+          "unit": "per minute",
+          "description": "Champion damage per minute",
+          "contribution": 12.8,
+          "missedPoints": 17.2
+        },
+        {
+          "name": "Kill participation",
+          "weight": 25.0,
+          "value": 49.4,
+          "own": 51.61,
+          "target": 80,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 12.0,
+              "value": 0
+            },
+            {
+              "own": 32.0,
+              "value": 20
+            },
+            {
+              "own": 52.0,
+              "value": 50
+            },
+            {
+              "own": 72.0,
+              "value": 80
+            },
+            {
+              "own": 88.0,
+              "value": 100
+            }
+          ],
+          "opponent": 66.67,
+          "unit": "%",
+          "description": "(Kills + assists) / team kills x 100",
+          "contribution": 12.3,
+          "missedPoints": 12.7
+        },
+        {
+          "name": "Survival",
+          "weight": 15.0,
+          "value": 50.4,
+          "own": 0.2,
+          "target": 0.4,
+          "targetLabel": "Zero-score threshold",
+          "benchmarks": [
+            {
+              "own": 0.0,
+              "value": 100
+            },
+            {
+              "own": 0.05,
+              "value": 100
+            },
+            {
+              "own": 0.12,
+              "value": 80
+            },
+            {
+              "own": 0.2,
+              "value": 50
+            },
+            {
+              "own": 0.3,
+              "value": 20
+            },
+            {
+              "own": 0.4,
+              "value": 0
+            }
+          ],
+          "opponent": 0.2,
+          "unit": "deaths/min",
+          "description": "Low death rates can earn full credit; benchmark curve falls to zero at the reference rate",
+          "contribution": 7.6,
+          "missedPoints": 7.4
+        },
+        {
+          "name": "Economy",
+          "weight": 5.0,
+          "value": 80.7,
+          "own": 333.7,
+          "target": 350,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 140.0,
+              "value": 0
+            },
+            {
+              "own": 210.0,
+              "value": 20
+            },
+            {
+              "own": 280.0,
+              "value": 50
+            },
+            {
+              "own": 350,
+              "value": 90
+            },
+            {
+              "own": 385.0,
+              "value": 100
+            }
+          ],
+          "opponent": 286.91,
+          "unit": "gold/min",
+          "description": "Gold earned per minute",
+          "contribution": 4.0,
+          "missedPoints": 1.0
+        },
+        {
+          "name": "Vision",
+          "weight": 20.0,
+          "value": 55.7,
+          "own": 2.15,
+          "target": 3.0,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0.0,
+              "value": 0
+            },
+            {
+              "own": 0.45,
+              "value": 0
+            },
+            {
+              "own": 1.2,
+              "value": 20
+            },
+            {
+              "own": 1.95,
+              "value": 50
+            },
+            {
+              "own": 3.0,
+              "value": 80
+            },
+            {
+              "own": 3.9,
+              "value": 100
+            }
+          ],
+          "opponent": 1.39,
+          "unit": "vision/min",
+          "description": "Vision score per minute",
+          "contribution": 11.1,
+          "missedPoints": 8.9
+        },
+        {
+          "name": "Objective pressure",
+          "weight": 5.0,
+          "value": 60.6,
+          "own": 162.57,
+          "target": 400,
+          "targetLabel": "Role reference rate",
+          "benchmarks": [
+            {
+              "own": 0,
+              "value": 0
+            },
+            {
+              "own": 40.0,
+              "value": 20
+            },
+            {
+              "own": 120.0,
+              "value": 50
+            },
+            {
+              "own": 240.0,
+              "value": 80
+            },
+            {
+              "own": 400,
+              "value": 100
+            }
+          ],
+          "opponent": 47.19,
+          "unit": "damage/min",
+          "description": "Objective damage per minute; does not measure setup or shotcalling",
+          "contribution": 3.0,
+          "missedPoints": 2.0
+        }
+      ]
+    }
+  ]
+}

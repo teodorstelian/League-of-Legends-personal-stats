@@ -1,0 +1,449 @@
+{
+  "id": "duration-1",
+  "trainingMatches": 445,
+  "holdoutMatches": 297,
+  "provenance": "Frozen from earliest 60% of 742 saved matches. Both configured players excluded from fitting. Equal outcome weighting; log-rate/duration slopes clipped to +/-2 then shrunk n/(n+100). Selected local history, not population benchmarks. Never refit at runtime.",
+  "models": [
+    {
+      "role": "BOTTOM",
+      "style": "Marksman carry",
+      "metric": "Champion damage",
+      "slope": 0.7322307973322192,
+      "games": 647
+    },
+    {
+      "role": "BOTTOM",
+      "style": "Marksman carry",
+      "metric": "Economy",
+      "slope": 0.17673187677452296,
+      "games": 647
+    },
+    {
+      "role": "BOTTOM",
+      "style": "Marksman carry",
+      "metric": "Objective pressure",
+      "slope": 1.1992397656040827,
+      "games": 647
+    },
+    {
+      "role": "BOTTOM",
+      "style": "Marksman carry",
+      "metric": "Vision",
+      "slope": 0.1814505075451472,
+      "games": 647
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Assassin carry",
+      "metric": "Champion damage",
+      "slope": 0.39405961459160466,
+      "games": 161
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Assassin carry",
+      "metric": "Economy",
+      "slope": 0.0037406091416318905,
+      "games": 161
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Assassin carry",
+      "metric": "Objective pressure",
+      "slope": 0.9199417242767081,
+      "games": 161
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Assassin carry",
+      "metric": "Vision",
+      "slope": 0.06634761750855689,
+      "games": 161
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Fighter",
+      "metric": "Champion damage",
+      "slope": 0.8202201603339991,
+      "games": 497
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Fighter",
+      "metric": "Economy",
+      "slope": 0.11314675634051946,
+      "games": 497
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Fighter",
+      "metric": "Objective pressure",
+      "slope": 0.8267190849636282,
+      "games": 497
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Fighter",
+      "metric": "Vision",
+      "slope": 0.07013426121283982,
+      "games": 497
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Tank",
+      "metric": "Champion damage",
+      "slope": 0.3720533589203558,
+      "games": 149
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Tank",
+      "metric": "Crowd control",
+      "slope": -0.021192317283993525,
+      "games": 149
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Tank",
+      "metric": "Economy",
+      "slope": -0.0009536164215239299,
+      "games": 149
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Tank",
+      "metric": "Objective pressure",
+      "slope": 0.6724681302651951,
+      "games": 149
+    },
+    {
+      "role": "JUNGLE",
+      "style": "Tank",
+      "metric": "Vision",
+      "slope": 0.09250939219514394,
+      "games": 149
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Assassin carry",
+      "metric": "Champion damage",
+      "slope": 0.3356373959635752,
+      "games": 216
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Assassin carry",
+      "metric": "Economy",
+      "slope": -0.005251964148582649,
+      "games": 216
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Assassin carry",
+      "metric": "Objective pressure",
+      "slope": 0.24005949723849157,
+      "games": 216
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Assassin carry",
+      "metric": "Vision",
+      "slope": 0.15695386044417653,
+      "games": 216
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Fighter",
+      "metric": "Champion damage",
+      "slope": 0.42973518911132336,
+      "games": 149
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Fighter",
+      "metric": "Economy",
+      "slope": 0.07486731001471737,
+      "games": 149
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Fighter",
+      "metric": "Objective pressure",
+      "slope": 0.32303998671711065,
+      "games": 149
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Fighter",
+      "metric": "Vision",
+      "slope": 0.17393429805758834,
+      "games": 149
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Mage carry",
+      "metric": "Champion damage",
+      "slope": 0.6986014568398431,
+      "games": 382
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Mage carry",
+      "metric": "Economy",
+      "slope": 0.15197731721537572,
+      "games": 382
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Mage carry",
+      "metric": "Objective pressure",
+      "slope": 0.8321177557049835,
+      "games": 382
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Mage carry",
+      "metric": "Vision",
+      "slope": 0.14379642277847612,
+      "games": 382
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Marksman carry",
+      "metric": "Champion damage",
+      "slope": 0.12198622057163158,
+      "games": 43
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Marksman carry",
+      "metric": "Economy",
+      "slope": -0.022840165861464253,
+      "games": 43
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Marksman carry",
+      "metric": "Objective pressure",
+      "slope": 0.16756595195555604,
+      "games": 43
+    },
+    {
+      "role": "MIDDLE",
+      "style": "Marksman carry",
+      "metric": "Vision",
+      "slope": 0.13161779921559433,
+      "games": 43
+    },
+    {
+      "role": "TOP",
+      "style": "Fighter",
+      "metric": "Champion damage",
+      "slope": 0.5766148311768023,
+      "games": 361
+    },
+    {
+      "role": "TOP",
+      "style": "Fighter",
+      "metric": "Economy",
+      "slope": 0.09611889917624171,
+      "games": 361
+    },
+    {
+      "role": "TOP",
+      "style": "Fighter",
+      "metric": "Objective pressure",
+      "slope": 0.7862316352601165,
+      "games": 361
+    },
+    {
+      "role": "TOP",
+      "style": "Fighter",
+      "metric": "Vision",
+      "slope": 0.13915161190080186,
+      "games": 361
+    },
+    {
+      "role": "TOP",
+      "style": "Marksman carry",
+      "metric": "Champion damage",
+      "slope": 0.45502685294211515,
+      "games": 97
+    },
+    {
+      "role": "TOP",
+      "style": "Marksman carry",
+      "metric": "Economy",
+      "slope": 0.10115174736974675,
+      "games": 97
+    },
+    {
+      "role": "TOP",
+      "style": "Marksman carry",
+      "metric": "Objective pressure",
+      "slope": 0.7768358817598456,
+      "games": 97
+    },
+    {
+      "role": "TOP",
+      "style": "Marksman carry",
+      "metric": "Vision",
+      "slope": 0.11341221095790603,
+      "games": 97
+    },
+    {
+      "role": "TOP",
+      "style": "Split-pusher",
+      "metric": "Champion damage",
+      "slope": 0.15056347735835793,
+      "games": 122
+    },
+    {
+      "role": "TOP",
+      "style": "Split-pusher",
+      "metric": "Economy",
+      "slope": 0.055092581789060714,
+      "games": 122
+    },
+    {
+      "role": "TOP",
+      "style": "Split-pusher",
+      "metric": "Tower pressure",
+      "slope": 0.32232892792767287,
+      "games": 122
+    },
+    {
+      "role": "TOP",
+      "style": "Split-pusher",
+      "metric": "Vision",
+      "slope": 0.013807871077216313,
+      "games": 122
+    },
+    {
+      "role": "TOP",
+      "style": "Tank",
+      "metric": "Champion damage",
+      "slope": 0.3459757862658979,
+      "games": 142
+    },
+    {
+      "role": "TOP",
+      "style": "Tank",
+      "metric": "Crowd control",
+      "slope": 0.14474995827511597,
+      "games": 142
+    },
+    {
+      "role": "TOP",
+      "style": "Tank",
+      "metric": "Economy",
+      "slope": 0.07624628360811493,
+      "games": 142
+    },
+    {
+      "role": "TOP",
+      "style": "Tank",
+      "metric": "Objective pressure",
+      "slope": 0.32464121475601027,
+      "games": 142
+    },
+    {
+      "role": "TOP",
+      "style": "Tank",
+      "metric": "Vision",
+      "slope": 0.10520563403426705,
+      "games": 142
+    },
+    {
+      "role": "UTILITY",
+      "style": "Damage support",
+      "metric": "Champion damage",
+      "slope": 0.3807526056702105,
+      "games": 173
+    },
+    {
+      "role": "UTILITY",
+      "style": "Damage support",
+      "metric": "Economy",
+      "slope": 0.053931517972726405,
+      "games": 173
+    },
+    {
+      "role": "UTILITY",
+      "style": "Damage support",
+      "metric": "Objective pressure",
+      "slope": 0.6687240548994771,
+      "games": 173
+    },
+    {
+      "role": "UTILITY",
+      "style": "Damage support",
+      "metric": "Vision",
+      "slope": 0.17950053494275459,
+      "games": 173
+    },
+    {
+      "role": "UTILITY",
+      "style": "Tank support",
+      "metric": "Champion damage",
+      "slope": 0.48719958890748816,
+      "games": 110
+    },
+    {
+      "role": "UTILITY",
+      "style": "Tank support",
+      "metric": "Crowd control",
+      "slope": 0.06325720752690263,
+      "games": 110
+    },
+    {
+      "role": "UTILITY",
+      "style": "Tank support",
+      "metric": "Economy",
+      "slope": 0.08097044336760097,
+      "games": 110
+    },
+    {
+      "role": "UTILITY",
+      "style": "Tank support",
+      "metric": "Objective pressure",
+      "slope": 0.7945045515104017,
+      "games": 110
+    },
+    {
+      "role": "UTILITY",
+      "style": "Tank support",
+      "metric": "Vision",
+      "slope": 0.15851730211613424,
+      "games": 110
+    },
+    {
+      "role": "UTILITY",
+      "style": "Utility support",
+      "metric": "Economy",
+      "slope": 0.09337338731542819,
+      "games": 211
+    },
+    {
+      "role": "UTILITY",
+      "style": "Utility support",
+      "metric": "Objective pressure",
+      "slope": 1.3569131832797428,
+      "games": 211
+    },
+    {
+      "role": "UTILITY",
+      "style": "Utility support",
+      "metric": "Support impact",
+      "slope": 0.4425432420873177,
+      "games": 211
+    },
+    {
+      "role": "UTILITY",
+      "style": "Utility support",
+      "metric": "Vision",
+      "slope": 0.25716215059563696,
+      "games": 211
+    }
+  ]
+}

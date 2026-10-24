@@ -1,3 +1,4 @@
+from app.scoring import VERSION
 from app.scoring import score_player
 
 
@@ -72,8 +73,8 @@ def test_unsupported_modes_are_not_scored():
 def test_both_opponents_can_independently_earn_100():
     info = game()
     for index in (0, 5):
-        info['participants'][index].update(totalDamageDealtToChampions=30000, goldEarned=15000,
-            assists=20, deaths=0, visionScore=36, damageDealtToObjectives=30000)
+        info['participants'][index].update(totalDamageDealtToChampions=40000, goldEarned=18000,
+            assists=30, deaths=1, visionScore=48, damageDealtToObjectives=30000)
     assert score_player(info, info['participants'][0])['value'] == 100
     assert score_player(info, info['participants'][5])['value'] == 100
 
@@ -112,7 +113,7 @@ def test_damage_support_does_not_need_healing_and_gets_damage_weights():
 def test_tank_emphasizes_cc_without_rewarding_damage_taken():
     info = game()
     p = info['participants'][1]
-    p['timeCCingOthers'] = 45
+    p['timeCCingOthers'] = 90
     score = score_player(info,p,['Tank','Mage'])
     assert score['archetype'] == 'Tank'
     cc=next(c for c in score['components'] if c['name']=='Crowd control')
@@ -140,3 +141,31 @@ def test_carry_and_fallback_profiles_are_explicit():
     assert 'unavailable' in score_player(info,p)['archetype']
     assert score_player(info,p,['Support','Marksman'])['archetype']=='Marksman carry'
     assert score_player(info,p,['Support'])['archetype']=='Role baseline (unmapped tags)'
+
+
+def test_benchmark_curves_are_bounded_continuous_and_monotone():
+    import pytest
+    from app.scoring import CURVES, curve_score
+    for name, anchors in CURVES.items():
+        for ratio, value in anchors:
+            assert curve_score(ratio, anchors) == pytest.approx(value)
+            assert abs(curve_score(ratio + 1e-8, anchors) - value) < 1e-4
+            assert abs(curve_score(max(0, ratio - 1e-8), anchors) - value) < 1e-4
+        values = [curve_score(i / 100, anchors) for i in range(501)]
+        assert all(0 <= value <= 100 for value in values)
+        assert values == sorted(values, reverse=name == 'Survival')
+
+
+def test_low_output_is_not_automatically_credited_and_anchors_are_explained():
+    info = game()
+    p = info['participants'][0]
+    p.update(totalDamageDealtToChampions=6000, goldEarned=6000, deaths=1)
+    result = score_player(info, p)
+    components = {c['name']: c for c in result['components']}
+    assert result['version'] == VERSION
+    assert components['Champion damage']['value'] == 0
+    assert components['Economy']['value'] == 0
+    assert components['Survival']['value'] == 100
+    for component in components.values():
+        assert component['benchmarks']
+        assert all(set(b) == {'own', 'value'} for b in component['benchmarks'])

@@ -689,7 +689,9 @@ async def get_all_matchups(queue: Literal['all','solo','flex']='all', role: Lite
 
 @app.get('/api/calibration')
 async def get_calibration(queue: Literal['all', 'solo', 'flex'] = 'all', minimum: int = Query(default=5, ge=1, le=1000)):
+    owner = configuration()[1]
     data = await get_dashboard(queue)
     if isinstance(data, JSONResponse):
         return data
-    return calibration_report(data, minimum)
+    details = {summary['id']: detail for summary, detail in storage.match_details(owner) if detail}
+    return calibration_report(data, minimum, details)

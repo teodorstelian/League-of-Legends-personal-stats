@@ -39,6 +39,8 @@ function render() {
   $('subtitle').textContent = `${queues[data.queue] || data.mode} · ${Math.floor(data.duration / 60)}m ${data.duration % 60}s · ${new Date(data.playedAt).toLocaleString()} · Patch ${data.patch} · ${data.id}`;
   $('rift-score').replaceChildren(scoreGauge(own.score.value, 'gauge-hero'));
   $('comparison').textContent = `${own.score.comparison || own.score.reason}${own.score.coverage ? ` · ${own.score.coverage}` : ''}`;
+  if(own.score.durationModel&&typeof own.score.baselineValue==='number')$('comparison').textContent += ` · v4: ${own.score.baselineValue.toFixed(1)} → duration candidate: ${own.score.value.toFixed(1)}`;
+  if(own.score.exceptionalBonus>0)$('comparison').textContent += ` · exceptional bonus: +${own.score.exceptionalBonus.toFixed(1)} (${own.score.withoutExceptional.toFixed(1)} → ${own.score.value.toFixed(1)})`;
   $('method').textContent = own.score.method || own.score.reason;
   let explanation=$('score-explanation');
   if(!explanation){explanation=el('div',undefined,'score-explanation');explanation.id='score-explanation';$('components').before(explanation);}
@@ -51,7 +53,10 @@ function render() {
   $('components').replaceChildren();
   for (const c of own.score.components) {
     const card = el('article', undefined, 'component');
-    card.append(el('h3', c.name), scoreGauge(c.value, 'gauge-medium', c.name), el('p', `You: ${number(c.own)} ${c.unit} · ${c.targetLabel}: ${number(c.target)} ${c.unit}`, 'muted'), el('p', `${c.weight}% weight · ${c.description}`, 'muted'), el('p', `${own.score.opponentContext || 'Opponent context'}: ${number(c.opponent)} ${c.unit} (does not affect score)`, 'muted'));
+    card.append(el('h3', c.name), scoreGauge(c.value, 'gauge-medium', c.name, c.maximum || 100), el('p', `You: ${number(c.own)} ${c.unit} · ${c.targetLabel}: ${number(c.target)} ${c.unit}`, 'muted'), el('p', `${c.weight}% weight · ${c.description}`, 'muted'), el('p', `${own.score.opponentContext || 'Opponent context'}: ${number(c.opponent)} ${c.unit} (does not affect score)`, 'muted'));
+    if(c.bonus>0)card.append(el('p', `Exceptional output: +${c.bonus.toFixed(1)} component points · +${c.bonusContribution.toFixed(1)} weighted score points (before overall cap)`, 'muted'));
+    if(c.durationMultiplier!==undefined&&c.durationMultiplier!==1)card.append(el('p', `Duration adjustment: ${c.durationMultiplier.toFixed(3)}× reference (${number(c.baseTarget)} → ${number(c.target)} ${c.unit})`, 'muted'));
+    if(c.benchmarks)card.append(el('p', `Benchmarks (${c.unit} → points): ${c.benchmarks.map(b=>`${number(b.own)} → ${b.value}`).join(' · ')}`, 'muted'));
     $('components').append(card);
   }
   if (!own.score.components.length) $('components').append(el('p', own.score.reason, 'muted'));
