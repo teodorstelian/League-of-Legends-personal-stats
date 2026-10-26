@@ -2,7 +2,14 @@ const $ = id => document.getElementById(id);
 const number = n => new Intl.NumberFormat().format(n);
 const championId = location.pathname.split('/').filter(Boolean).pop();
 const queueNames = {all: 'all ranked', solo: 'Ranked Solo / Duo', flex: 'Ranked Flex'};
-let data;
+let data, view;
+const journey = new URLSearchParams(location.search);
+const viewReady = JournalViewState.create(`champion:${championId}`, ['queue','matchup-role','matchup-period','matchup-sort']).then(saved=>{
+  view=saved;
+  if(['all','solo','flex'].includes(journey.get('queue'))) $('queue').value=journey.get('queue');
+  if(journey.get('from')==='matches')for(const link of document.querySelectorAll('a.back-link[href="/"]')){link.href='/matches';link.textContent='← Back to matches';}
+  for(const id of ['queue','matchup-role','matchup-period','matchup-sort'])$(id)?.addEventListener('change',()=>{view.resetScroll();view.save();});
+});
 function el(tag, text, className) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -34,7 +41,8 @@ function render() {
   const queues = {420: 'Ranked Solo / Duo', 440: 'Ranked Flex', 450: 'ARAM', 400: 'Normal Draft', 490: 'Quickplay', 1700: 'Arena'};
   for (const match of matches) {
     const row = el('a', undefined, `match ${match.win ? 'win' : 'loss'}`);
-    row.href = `/matches/${encodeURIComponent(match.id)}`;
+    row.href = `/matches/${encodeURIComponent(match.id)}?${new URLSearchParams({from:journey.get('from')==='matches'?'matches':'champion',champion:championId,queue:$('queue').value})}`;
+    row.addEventListener('click',()=>view?.save());
     const image = el('img'); image.src = match.icon; image.alt = data.name;
     const champion = el('div'); champion.append(el('strong', data.name), el('small', queues[match.queue] || match.mode));
     const score = el('div', `${match.kills} / ${match.deaths} / ${match.assists}`, 'score'); score.append(el('small', `${number(match.cs)} CS`));
@@ -46,13 +54,14 @@ function render() {
   if (!matches.length) $('matches').append(el('p', `No ${data.name} games in this sample. Try another queue.`, 'muted'));
 }
 async function load() {
+  await viewReady;
   $('queue').disabled = true; $('refresh').disabled = true;
   $('status').hidden = false; $('status').className = ''; $('status').textContent = 'Loading champion stats…';
   try {
     const response = await fetch(`/api/champions/${encodeURIComponent(championId)}?queue=${encodeURIComponent($('queue').value)}`);
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || 'Unable to load this champion.');
-    data = body; render(); $('content').hidden = false;
+    data = body; render(); $('content').hidden = false; view.restoreScroll(); view.save();
     loadMatchups();
     $('status').hidden = !data.warning;
     if (data.warning) { $('status').className = 'error'; $('status').textContent = `The recent match sample is incomplete: ${data.warning}`; }

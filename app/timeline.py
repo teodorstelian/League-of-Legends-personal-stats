@@ -37,3 +37,12 @@ def timeline_report(raw, stored):
         candidates = [p for p in points if minute * 60000 - 90000 <= p['timestamp'] <= minute * 60000]
         checkpoints.append({'minute': minute, 'point': candidates[-1] if candidates and stored['raw']['info'].get('gameDuration', 0) >= minute * 60 else None})
     return {'opponent': rival.get('championName') if rival else None, 'points': points, 'checkpoints': checkpoints, 'events': sorted(events, key=lambda e: e['timestamp'])}
+
+
+def economy_checkpoints(raw, stored):
+    """Recorded same-role gold leads; context only, never substituted into scores."""
+    if not raw or raw.get('unavailable'):
+        return []
+    report = timeline_report(raw, stored)
+    return [{'minute': c['minute'], 'timestamp': c['point']['timestamp'], 'goldDifference': c['point']['gold']}
+            for c in report['checkpoints'] if c['point'] is not None]

@@ -28,7 +28,8 @@ async function chooseProfile(riotId) {
 }
 profileSelect.addEventListener('change', () => chooseProfile(profileSelect.value));
 profileAdd.addEventListener('click', () => { const id = window.prompt('Enter an EUNE Riot ID (Name#Tag)'); if (id?.trim()) chooseProfile(id.trim()); });
-fetch('/api/profiles').then(async response => { if(!response.ok) throw Error('Unable to load profiles.'); return response.json(); }).then(body => {
+window.journalProfileReady = fetch('/api/profiles').then(async response => { if(!response.ok) throw Error('Unable to load profiles.'); return response.json(); }).then(body => {
   for(const profile of body.profiles){const option=document.createElement('option');option.value=profile.riotId;option.textContent=`${profile.riotId} · ${profile.region}`;profileSelect.append(option);}
   profileSelect.value=body.active;
-}).catch(error => {profileStatus.textContent=error.message;});
+  return body.active;
+}).catch(error => {profileStatus.textContent=error.message;return null;});

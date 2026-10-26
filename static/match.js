@@ -1,6 +1,11 @@
 const $ = id => document.getElementById(id);
 const number = n => n === null || n === undefined ? '—' : new Intl.NumberFormat().format(n);
 let data;
+const journey = new URLSearchParams(location.search);
+const journeyQueue = ['all','solo','flex'].includes(journey.get('queue')) ? journey.get('queue') : 'all';
+if(journey.get('from')==='champion' && /^\d+$/.test(journey.get('champion')||'')){
+  for(const link of document.querySelectorAll('a.back-link[href="/matches"]')){link.href=`/champions/${journey.get('champion')}?${new URLSearchParams({queue:journeyQueue})}`;link.textContent='← Back to champion';}
+}
 function el(tag, text, className) {
   const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (className) n.className = className; return n;
 }
@@ -15,7 +20,7 @@ function assets(id, list) {
 }
 function inspect(p) {
   $('player-name').textContent = `${p.riotId} · ${p.name}${p.you ? ' · You' : ''}`;
-  $('champion-link').href = `/champions/${p.championId}`;
+  $('champion-link').href = `/champions/${p.championId}?${new URLSearchParams({queue:journeyQueue,...(journey.get('from')==='matches'?{from:'matches'}:{})})}`;
   assets('items', p.items); assets('spells', p.spells); assets('runes', p.runes);
   const minutes = data.duration / 60;
   const stats = [
@@ -39,24 +44,26 @@ function render() {
   $('subtitle').textContent = `${queues[data.queue] || data.mode} · ${Math.floor(data.duration / 60)}m ${data.duration % 60}s · ${new Date(data.playedAt).toLocaleString()} · Patch ${data.patch} · ${data.id}`;
   $('rift-score').replaceChildren(scoreGauge(own.score.value, 'gauge-hero'));
   $('comparison').textContent = `${own.score.comparison || own.score.reason}${own.score.coverage ? ` · ${own.score.coverage}` : ''}`;
-  if(own.score.durationModel&&typeof own.score.baselineValue==='number')$('comparison').textContent += ` · v4: ${own.score.baselineValue.toFixed(1)} → duration candidate: ${own.score.value.toFixed(1)}`;
-  if(own.score.exceptionalBonus>0)$('comparison').textContent += ` · exceptional bonus: +${own.score.exceptionalBonus.toFixed(1)} (${own.score.withoutExceptional.toFixed(1)} → ${own.score.value.toFixed(1)})`;
-  $('method').textContent = own.score.method || own.score.reason;
+  const equation=$('score-equation');
+  equation.replaceChildren();
+  if(typeof own.score.value==='number'&&typeof own.score.withoutExceptional==='number'){
+    equation.append(el('p', `${own.score.withoutExceptional.toFixed(1)} base score + ${own.score.exceptionalBonus.toFixed(1)} exceptional bonus = ${own.score.value.toFixed(1)} final score`, 'score-equation-value'));
+
+  }
+  $('score-diagnostics-link').href = `/calibration?${new URLSearchParams({match:data.id})}`;
   let explanation=$('score-explanation');
   if(!explanation){explanation=el('div',undefined,'score-explanation');explanation.id='score-explanation';$('components').before(explanation);}
   explanation.replaceChildren();
-  if(own.score.explanations)for(const [key,title] of [['strengths','Largest contributions'],['gaps','Largest gaps to full targets']]){
-    const panel=el('article');panel.append(el('h3',title));
-    for(const text of own.score.explanations[key])panel.append(el('p',text,'muted'));
-    explanation.append(panel);
+  if(own.score.summary){
+    const {strength,improvement}=own.score.summary;
+    if(strength){const panel=el('article');panel.append(el('h3','Biggest strength'),el('p',`${strength.name} · ${strength.contribution.toFixed(1)} points earned`,'muted'));explanation.append(panel);}
+    const panel=el('article');panel.append(el('h3','Improvement area'),el('p',improvement?`${improvement.name} · ${improvement.value.toFixed(1)} / 100`:'All benchmarks met','muted'));explanation.append(panel);
   }
   $('components').replaceChildren();
   for (const c of own.score.components) {
     const card = el('article', undefined, 'component');
-    card.append(el('h3', c.name), scoreGauge(c.value, 'gauge-medium', c.name, c.maximum || 100), el('p', `You: ${number(c.own)} ${c.unit} · ${c.targetLabel}: ${number(c.target)} ${c.unit}`, 'muted'), el('p', `${c.weight}% weight · ${c.description}`, 'muted'), el('p', `${own.score.opponentContext || 'Opponent context'}: ${number(c.opponent)} ${c.unit} (does not affect score)`, 'muted'));
-    if(c.bonus>0)card.append(el('p', `Exceptional output: +${c.bonus.toFixed(1)} component points · +${c.bonusContribution.toFixed(1)} weighted score points (before overall cap)`, 'muted'));
-    if(c.durationMultiplier!==undefined&&c.durationMultiplier!==1)card.append(el('p', `Duration adjustment: ${c.durationMultiplier.toFixed(3)}× reference (${number(c.baseTarget)} → ${number(c.target)} ${c.unit})`, 'muted'));
-    if(c.benchmarks)card.append(el('p', `Benchmarks (${c.unit} → points): ${c.benchmarks.map(b=>`${number(b.own)} → ${b.value}`).join(' · ')}`, 'muted'));
+    const unit=c.unit==='per minute'?(c.name==='Support impact'?'impact/min':'damage/min'):c.unit;
+    card.append(el('h3',c.name),scoreGauge(c.value,'gauge-medium',c.name,c.maximum||100),el('p',`${number(c.own)} ${unit}`,'muted'),el('small',`${c.weight}% weight${c.bonus>0?` · +${c.bonusContribution.toFixed(1)} bonus`:''}`,'muted'));
     $('components').append(card);
   }
   if (!own.score.components.length) $('components').append(el('p', own.score.reason, 'muted'));

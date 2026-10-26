@@ -646,7 +646,9 @@ async def build_match_details(stored, owner=None):
             'spells': [asset(p.get(f'summoner{i}Id', 0), spells, 'spell') for i in (1, 2)],
             'runes': [asset(s['perk'], runes, 'rune') for style in perks.get('styles', []) for s in style.get('selections', [])],
             'statShards': perks.get('statPerks', {}), 'score': score_player(info, p, champion.get('tags'))})
-    return {'id': raw['metadata']['matchId'], 'mode': info.get('gameMode'), 'queue': info.get('queueId'),
+    from .timeline import economy_checkpoints
+    economy = economy_checkpoints(storage.timeline(raw['metadata']['matchId']), stored)
+    return {'id': raw['metadata']['matchId'], 'economyCheckpoints': economy, 'mode': info.get('gameMode'), 'queue': info.get('queueId'),
             'duration': info.get('gameDuration', 0), 'playedAt': info.get('gameStartTimestamp', 0),
             'patch': info.get('gameVersion'), 'participants': participants,
             'teams': info.get('teams', []), 'warning': warning}

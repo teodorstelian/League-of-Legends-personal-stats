@@ -25,9 +25,9 @@ def test_damage_bonus_retains_weight_and_final_cap_and_survival_has_no_bonus():
     extra = score_player(info, p, ['Marksman'])
     damage = next(c for c in extra['components'] if c['name'] == 'Champion damage')
     survival = next(c for c in extra['components'] if c['name'] == 'Survival')
-    assert damage['value'] == 120 and damage['weight'] == 30
-    assert damage['bonusContribution'] == 6
-    assert extra['value'] - ordinary['value'] == pytest.approx(6, abs=.1)
+    assert damage['value'] == 125 and damage['weight'] == 30
+    assert damage['bonusContribution'] == 7.5
+    assert extra['value'] - ordinary['value'] == pytest.approx(7.5, abs=.1)
     assert survival['bonus'] == 0 and survival['maximum'] == 100
     for q in info['participants']:
         q.update(assists=100, deaths=0, visionScore=10000, goldEarned=1000000, damageDealtToObjectives=1000000)

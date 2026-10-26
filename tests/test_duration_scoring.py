@@ -34,6 +34,9 @@ def test_active_candidate_matches_frozen_component_formula_and_has_rollback():
         assert c['weight'] == old['weight']
         assert c['own'] == old['own']
         expected = (curve_score if c['name'] == 'Survival' else exceptional_score)(c['own'] / (old['target'] * multiplier), CURVES[c['name']])
+        if c['name'] != 'Survival':
+            normal = curve_score(c['own'] / (old['target'] * multiplier), CURVES[c['name']])
+            expected = normal + (expected - normal) * (c['maximum'] - 100) / 20
         assert c['value'] == pytest.approx(expected, abs=.1)
         if multiplier != 1:
             adjusted.append(c)

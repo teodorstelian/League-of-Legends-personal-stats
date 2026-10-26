@@ -1,5 +1,10 @@
 const $ = id => document.getElementById(id);
-let data, visible = 25, selectedQueue = 'all';
+let data, visible = 25, selectedQueue = 'all', view;
+const viewReady = JournalViewState.create('matches', ['search','queue','result','sort'], {visible:25}).then(saved => {
+  view = saved;
+  visible = Number.isInteger(view.state.visible) && view.state.visible >= 25 ? Math.min(100000,view.state.visible) : 25;
+  selectedQueue = $('queue').value;
+});
 function el(tag, text, className) { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (className) n.className = className; return n; }
 function render() {
   if (!data) return;
@@ -11,7 +16,8 @@ function render() {
   $('summary').textContent = `${matches.length} matching games · ${wins} wins / ${matches.length - wins} losses · Average Rift Score ${average} (${scored.length} scored) · Showing ${Math.min(visible,matches.length)}`;
   $('matches').replaceChildren();
   for (const match of matches.slice(0,visible)) {
-    const row = el('a', undefined, `match ${match.win ? 'win' : 'loss'}`); row.href = `/matches/${encodeURIComponent(match.id)}`;
+    const row = el('a', undefined, `match ${match.win ? 'win' : 'loss'}`); row.href = `/matches/${encodeURIComponent(match.id)}?${new URLSearchParams({from:'matches',queue:selectedQueue})}`;
+    row.addEventListener('click',()=>view?.save({visible}));
     const image = el('img'); image.src = match.icon; image.alt = match.name; image.loading = 'lazy';
     const champion = el('div'); champion.append(el('strong',match.name),el('small',match.queue === 420 ? 'Ranked Solo / Duo' : 'Ranked Flex'));
     const kda = el('div',`${match.kills} / ${match.deaths} / ${match.assists}`,'score'); kda.append(el('small',`${new Intl.NumberFormat().format(match.cs)} CS`));
@@ -22,17 +28,18 @@ function render() {
   $('more').hidden = visible >= matches.length;
 }
 async function load() {
+  await viewReady;
   $('queue').disabled = true; $('refresh').disabled = true; $('status').textContent = 'Loading saved matches…';
   const queue = $('queue').value;
   try {
     const response = await fetch(`/api/dashboard?queue=${encodeURIComponent(queue)}`), body = await response.json();
     if (!response.ok) throw new Error(body.message || 'Unable to load saved matches.');
     if (queue !== selectedQueue) visible = 25;
-    data = body; selectedQueue = queue; render(); $('status').textContent = '';
+    data = body; selectedQueue = queue; render(); view.restoreScroll(); view.save({visible}); $('status').textContent = '';
   } catch(error) { $('status').textContent = error.message; $('queue').value = selectedQueue; }
   finally { $('queue').disabled = false; $('refresh').disabled = false; }
 }
-for (const id of ['search','result','sort']) $(id).addEventListener(id === 'search' ? 'input' : 'change', () => { visible = 25; render(); });
-$('queue').addEventListener('change',load); $('refresh').addEventListener('click',load);
-$('more').addEventListener('click',() => { visible += 25; render(); });
+for (const id of ['search','result','sort']) $(id).addEventListener(id === 'search' ? 'input' : 'change', () => { visible = 25; view?.resetScroll(); render(); view?.save({visible}); });
+$('queue').addEventListener('change',()=>{view?.resetScroll();load();}); $('refresh').addEventListener('click',load);
+$('more').addEventListener('click',() => { visible += 25; render(); view?.save({visible}); });
 load();

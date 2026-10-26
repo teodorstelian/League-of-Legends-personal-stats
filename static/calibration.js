@@ -43,9 +43,9 @@ function render(data){
   simpleTable('duration-results',['Duration / result','Scored games','Mean active score'],investigation.durationResults.map(r=>[r.name,r.count,r.current]));
   simpleTable('duration-components',['Duration / result','Component','Games','Mean / 100','Raw rate','Unit'],investigation.durationComponents.map(r=>[r.group,r.name,r.count,r.mean,r.rawMean,r.unit]));
   simpleTable('target-review',['Scope','Group','Component','Games','Raw rate','Unit','Reference range','Mean / 100','At least 100'],data.components.filter(r=>r.scope!=='Overall'&&['Crowd control','Objective pressure','Tower pressure'].includes(r.name)).map(r=>[r.scope,r.group,r.name,r.count,r.rawMean,r.unit,r.targetMin===r.targetMax?r.targetMin:`${r.targetMin}–${r.targetMax}`,r.mean,`${r.hundredPercent}%`]));
-  simpleTable('candidate-summary',['Group','Paired games','Current active score','Candidate','Change'],investigation.comparisons.map(r=>[r.name,r.count,r.current,r.candidate,signed(r.delta)]));
-  simpleTable('candidate-cc',['Archetype','CC games','At least 100: current','At least 100: candidate'],investigation.cc.map(r=>[r.name,r.count,r.currentCap===null?'—':`${r.currentCap}%`,r.candidateCap===null?'—':`${r.candidateCap}%`]));
-  simpleTable('candidate-examples',['Champion / match','Role','Current active score','Candidate','Change'],investigation.examples.map(r=>[matchLink(r),r.role,r.current,r.candidate,signed(r.delta)]));
+  simpleTable('candidate-summary',['Group','Paired games','Current active score','Comparison','Change'],investigation.comparisons.map(r=>[r.name,r.count,r.current,r.candidate,signed(r.delta)]));
+  simpleTable('candidate-cc',['Archetype','CC games','At least 100: current','At least 100: comparison'],investigation.cc.map(r=>[r.name,r.count,r.currentCap===null?'—':`${r.currentCap}%`,r.candidateCap===null?'—':`${r.candidateCap}%`]));
+  simpleTable('candidate-examples',['Champion / match','Role','Current active score','Comparison','Change'],investigation.examples.map(r=>[matchLink(r),r.role,r.current,r.candidate,signed(r.delta)]));
   simpleTable('short-games',['Champion / match','Duration (seconds)','Result','Saved score','Early surrender','Surrender','Recalculation'],data.shortGames.map(r=>[matchLink(r),r.duration,r.win===true?'Win':r.win===false?'Loss':'—',r.score,r.earlySurrender,r.surrender,r.scoreReason||'Scored under current rules']));
   table('roles',data.roles);table('archetypes',data.archetypes);table('champions',data.champions);
 }
@@ -66,3 +66,5 @@ async function load(){
 }
 for(const id of ['queue','minimum'])$(id).addEventListener('change',load);$('refresh').addEventListener('click',load);
 setInterval(()=>{if(document.visibilityState==='visible'&&!$('refresh').disabled)load();},30000);load();
+
+for(const [id,open] of [['expand-diagnostics',true],['collapse-diagnostics',false]])$(id).addEventListener('click',()=>{for(const section of document.querySelectorAll('.calibration-details'))section.open=open;});
