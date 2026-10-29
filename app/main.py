@@ -296,11 +296,13 @@ async def trends_page():
 
 
 @app.get('/api/trends')
-async def get_trends(queue: Literal['all', 'solo', 'flex'] = 'all', role: Literal['all', 'TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'] = 'all', champion: int = Query(default=0, ge=0)):
+async def get_trends(queue: Literal['all', 'solo', 'flex'] = 'all', role: Literal['all', 'TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'] = 'all', champion: int = Query(default=0, ge=0), comparison: Literal['days', 'games'] = 'days', size: int = 30):
+    if size not in (30, 50, 100):
+        return JSONResponse({'message': 'Comparison count must be 30, 50 or 100.'}, status_code=422)
     data = await get_dashboard(queue)
     if isinstance(data, JSONResponse):
         return data
-    return performance_trends(data, time.time(), role, champion)
+    return performance_trends(data, time.time(), role, champion, comparison, size)
 
 
 @app.get('/api/tier-list')
@@ -569,18 +571,20 @@ async def get_early_game(queue: Literal['all','solo','flex']='all', role: Litera
     from .early_game import early_game_report
     _, player = configuration()
     profile = storage.profile(player) or {}
-    return {**early_game_report(storage.timeline_rows(player), time.time(), queue, role, champion, period), 'catalog': [{'championId': c['championId'], 'name': c['name'], 'icon': c.get('icon')} for c in profile.get('champions', [])]}
+    now = time.time()
+    rows = await asyncio.to_thread(storage.early_game_rows, player, now, queue, role, champion, period)
+    return {**early_game_report(rows, now, queue, role, champion, period), 'catalog': [{'championId': c['championId'], 'name': c['name'], 'icon': c.get('icon')} for c in profile.get('champions', [])]}
 
 
 @app.get('/api/timeline-import')
 async def get_timeline_import():
     _, player = configuration()
     state = storage.state(player)
-    rows = storage.timeline_rows(player)
-    return {'active': bool(state.get('timelineActive')), 'remaining': len(state.get('timelinePending', [])), 'total': len(rows),
-        'cached': sum(bool(t and not t.get('unavailable')) for _, _, t in rows),
-        'unavailable': sum(bool(t and t.get('unavailable')) for _, _, t in rows),
+    inventory = await asyncio.to_thread(storage.timeline_inventory, player)
+    return {'active': bool(state.get('timelineActive')), 'remaining': len(state.get('timelinePending', [])),
+        'total':inventory['total'], 'cached':inventory['cached'], 'unavailable':inventory['unavailable'],
         'message': timeline_import_status['message']}
+
 
 
 @app.post('/api/timeline-import/{action}')
@@ -588,7 +592,7 @@ async def control_timeline_import(action: Literal['start','pause']):
     _, player = configuration()
     state = storage.state(player)
     if action == 'start':
-        state['timelinePending'] = [m['id'] for m, d, t in storage.timeline_rows(player) if d and t is None]
+        state['timelinePending'] = storage.timeline_inventory(player)['pending']
         state['timelineActive'] = bool(state['timelinePending'])
         timeline_import_status['message'] = 'Timeline import queued.' if state['timelineActive'] else 'All available saved match details have cached timelines.'
     else:

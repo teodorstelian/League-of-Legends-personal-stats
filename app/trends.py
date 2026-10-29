@@ -18,11 +18,19 @@ def period_stats(matches):
             'deaths': average('deaths'), 'damage': rate('damage'), 'vision': rate('vision')}
 
 
-def performance_trends(data, now, role='all', champion=0):
+def performance_trends(data, now, role='all', champion=0, comparison='days', size=30):
+    if comparison not in ('days', 'games'):
+        raise ValueError('Unknown trend comparison')
+    if type(size) is not int or size not in (30, 50, 100):
+        raise ValueError('Comparison size must be 30, 50 or 100')
     matches = [m for m in data['matches'] if 0 < m.get('playedAt', 0) <= now * 1000
                and (role == 'all' or m.get('role') == role) and (not champion or m['championId'] == champion)]
-    recent = [m for m in matches if m['playedAt'] >= (now - 30 * DAY) * 1000]
-    previous = [m for m in matches if (now - 60 * DAY) * 1000 <= m['playedAt'] < (now - 30 * DAY) * 1000]
+    if comparison == 'games':
+        ordered = sorted(matches, key=lambda m: (-m['playedAt'], str(m.get('id', ''))))
+        recent, previous = ordered[:size], ordered[size:2 * size]
+    else:
+        recent = [m for m in matches if m['playedAt'] >= (now - size * DAY) * 1000]
+        previous = [m for m in matches if (now - 2 * size * DAY) * 1000 <= m['playedAt'] < (now - size * DAY) * 1000]
     current_stats, previous_stats = period_stats(recent), period_stats(previous)
     deltas = {key: round(current_stats[key]['value'] - previous_stats[key]['value'], 2)
               if current_stats[key]['value'] is not None and previous_stats[key]['value'] is not None else None
@@ -46,6 +54,6 @@ def performance_trends(data, now, role='all', champion=0):
         forms.append({**c, 'current': after, 'previous': before, 'delta': delta,
                       'form': 'insufficient' if not enough else 'improving' if delta >= 3 else 'declining' if delta <= -3 else 'steady'})
     forms.sort(key=lambda c: (c['delta'] is None, -abs(c['delta'] or 0), c['name']))
-    return {'queue': data.get('queue', 'all'), 'role': role, 'champion': champion, 'asOf': int(now*1000),
+    return {'size': size, 'comparison': comparison, 'queue': data.get('queue', 'all'), 'role': role, 'champion': champion, 'asOf': int(now*1000),
             'current': current_stats, 'previous': previous_stats, 'deltas': deltas, 'weeks': weeks, 'forms': forms,
             'champions': data.get('champions', []), 'filteredGames': len(matches)}

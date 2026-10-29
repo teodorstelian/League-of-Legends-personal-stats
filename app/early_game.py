@@ -32,7 +32,7 @@ def early_game_report(rows, now, queue='all', role='all', champion=0, period='al
     filtered = [(m, d, t) for m, d, t in rows if (queue == 'all' or m['queue'] == {'solo': 420, 'flex': 440}[queue])
         and (role == 'all' or m.get('role') == role) and (not champion or m['championId'] == champion)
         and (period == 'all' or (now - 30 * 86400) * 1000 <= m.get('playedAt', 0) <= now * 1000)]
-    games = [(m, timeline_report(t, d)) for m, d, t in filtered if d and t and not t.get('unavailable')]
+    games = [(m, t['earlyReport'] if 'earlyReport' in t else compact_timeline(t, d)) for m, d, t in filtered if t and not t.get('unavailable') and (d or 'earlyReport' in t)]
     groups = []
     for key in sorted({(m['championId'], m.get('role', 'UNKNOWN')) for m, _ in games}):
         group = [(m, r) for m, r in games if (m['championId'], m.get('role', 'UNKNOWN')) == key]
@@ -40,3 +40,13 @@ def early_game_report(rows, now, queue='all', role='all', champion=0, period='al
     roles = [{'role': r, **summarize([(m, t) for m, t in games if m.get('role', 'UNKNOWN') == r])} for r in sorted({m.get('role', 'UNKNOWN') for m, _ in games})]
     return {'total': len(filtered), 'cached': len(games), 'unavailable': sum(bool(t and t.get('unavailable')) for _, _, t in filtered),
         'summary': summarize(games), 'champions': groups, 'roles': roles}
+
+
+COMPACT_VERSION = 1
+
+
+def compact_timeline(raw, detail):
+    report = timeline_report(raw, detail)
+    return {'checkpoints':report['checkpoints'],
+            'events':[{'timestamp':e['timestamp'],'death':True} for e in report['events']
+                      if e.get('death') and e['timestamp'] < 600000], 'version':COMPACT_VERSION}
