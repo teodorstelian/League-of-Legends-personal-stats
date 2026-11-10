@@ -4,7 +4,7 @@ const columns = [
   ['name','Champion', 'Champion name'], ['score','Avg Rift Score','Average Rift Score'],
   ['samples','Games','Games played'], ['winRate','Win rate','Win rate'],
   ['record','W / L','Wins, then fewer losses'], ['kda','Avg K / D / A','KDA ratio: (kills + assists) / max(1, deaths)'],
-  ['mastery','Mastery points','Mastery points']
+  ['lp','Net LP','Observed net LP across tracked games'], ['mastery','Mastery points','Mastery points']
 ];
 const sortSelect = $('sort'); sortSelect.replaceChildren();
 for (const [key,label] of [...columns,['games','Games played']]) for(const direction of ['desc','asc']) {
@@ -31,7 +31,7 @@ function render() {
     const games = groups.get(c.championId) || [], wins = games.filter(m => m.win).length;
     const scores = games.map(m => m.score).filter(s => typeof s === 'number' && Number.isFinite(s) && s >= 0 && s <= 100);
     const scoreStats = {total: games.length, scored: scores.length, average: scores.length ? Math.round(scores.reduce((a,b) => a+b,0) / scores.length * 10) / 10 : null};
-    return {...c, scoreStats, games, wins, winRate: games.length ? wins / games.length * 100 : null, points: mastery.get(c.championId) || 0};
+    return {...c, lp: trackedLP(games), scoreStats, games, wins, winRate: games.length ? wins / games.length * 100 : null, points: mastery.get(c.championId) || 0};
   }).filter(c => c.name.toLocaleLowerCase().includes(query) && (!$('played').checked || c.games.length) && c.scoreStats.scored >= Number($('minimum').value));
   const [sort,direction] = $('sort').value.split('-');
   const multiplier=direction==='asc'?1:-1;
@@ -42,6 +42,7 @@ function render() {
     if(sort==='games')return c.games.length;
     if(sort==='winRate')return c.winRate;
     if(sort==='record')return c.games.length?c.wins:null;
+    if(sort==='lp')return c.lp.total;
     if(sort==='mastery')return c.points;
     if(sort==='kda')return c.games.length?c.games.reduce((n,m)=>n+m.kills+m.assists,0)/Math.max(1,c.games.reduce((n,m)=>n+m.deaths,0)):null;
   };
@@ -67,10 +68,10 @@ function render() {
     const sample = node('td', `${c.games.length}`);
     if (c.scoreStats.scored > 0 && c.scoreStats.scored < 5) sample.append(node('small','Small sample','small-sample')); row.append(sample);
     row.append(node('td', c.winRate === null ? '—' : `${c.winRate.toFixed(0)}%`), node('td', `${c.wins} / ${c.games.length - c.wins}`));
-    row.append(node('td', c.games.length ? ['kills','deaths','assists'].map(k => (c.games.reduce((n,m) => n + m[k],0) / c.games.length).toFixed(1)).join(' / ') : '—'), node('td',new Intl.NumberFormat().format(c.points)));
+    row.append(node('td', c.games.length ? ['kills','deaths','assists'].map(k => (c.games.reduce((n,m) => n + m[k],0) / c.games.length).toFixed(1)).join(' / ') : '—'), lpCell(c), node('td',new Intl.NumberFormat().format(c.points)));
     $('champion-rows').append(row);
   }
-  if (!rows.length) { const row = node('tr'), cell = node('td','No champions match these filters.'); cell.colSpan = 7; row.append(cell); $('champion-rows').append(row); }
+  if (!rows.length) { const row = node('tr'), cell = node('td','No champions match these filters.'); cell.colSpan = 8; row.append(cell); $('champion-rows').append(row); }
 }
 async function load() {
   $('refresh').disabled = true; $('queue').disabled = true; $('role').disabled = true; $('status').textContent = 'Loading champion stats…';
@@ -88,3 +89,9 @@ $('role').addEventListener('change', load);
 $('queue').addEventListener('change', load); $('refresh').addEventListener('click', load);
 load();
 setInterval(() => { if (document.visibilityState === 'visible' && !$('refresh').disabled) load(); }, 30000);
+
+function lpCell(c) {
+  const cell = node('td', formatLP(c.lp.total));
+  cell.append(node('small', `${c.lp.count} / ${c.games.length} tracked`, 'muted'));
+  return cell;
+}

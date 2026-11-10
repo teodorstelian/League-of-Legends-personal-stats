@@ -20,6 +20,7 @@ function render() {
     row.addEventListener('click',()=>view?.save({visible}));
     const image = el('img'); image.src = match.icon; image.alt = match.name; image.loading = 'lazy';
     const champion = el('div'); champion.append(el('strong',match.name),el('small',match.queue === 420 ? 'Ranked Solo / Duo' : 'Ranked Flex'));
+    champion.append(el('small', `Role: ${{TOP:'Top',JUNGLE:'Jungle',MIDDLE:'Mid',BOTTOM:'Bot',UTILITY:'Support'}[match.role] || 'Unassigned'}`));
     const kda = el('div',`${match.kills} / ${match.deaths} / ${match.assists}`,'score'); kda.append(el('small',`${new Intl.NumberFormat().format(match.cs)} CS`));
     const time = el('div',`${Math.floor(match.duration / 60)}m ${match.duration % 60}s`,'match-time'); time.append(el('small',new Date(match.playedAt).toLocaleDateString([], {month:'short',day:'numeric'})));
     row.append(el('span',match.win ? 'VICTORY' : 'DEFEAT','result'),image,champion,kda,...matchBuildAndScore(match),time); $('matches').append(row);

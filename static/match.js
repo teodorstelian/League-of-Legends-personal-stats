@@ -39,9 +39,10 @@ function render() {
   const own = data.participants.find(p => p.you);
   if (!own) throw new Error('Your player data is missing from this match.');
   document.title = `${own.name} ${own.win ? 'Victory' : 'Defeat'} · Rift Journal`;
-  $('heading').textContent = `${own.win ? 'Victory' : 'Defeat'} · ${own.name}`;
+  $('heading').textContent = `${own.win ? 'Victory' : 'Defeat'} · ${own.name} · ${formatLP(data.lpChange)}`;
   const queues = {420:'Ranked Solo / Duo',440:'Ranked Flex',450:'ARAM',400:'Normal Draft'};
   $('subtitle').textContent = `${queues[data.queue] || data.mode} · ${Math.floor(data.duration / 60)}m ${data.duration % 60}s · ${new Date(data.playedAt).toLocaleString()} · Patch ${data.patch} · ${data.id}`;
+  $('heading').title = data.lpSource ? `Recorded by ${data.lpSource.name}: ${data.lpSource.url}` : 'Observed LP movement between refreshes; may include dodge penalties. Older games and multi-game gaps are unavailable.';
   $('rift-score').replaceChildren(scoreGauge(own.score.value, 'gauge-hero'));
   $('comparison').textContent = `${own.score.comparison || own.score.reason}${own.score.coverage ? ` · ${own.score.coverage}` : ''}`;
   const equation=$('score-equation');

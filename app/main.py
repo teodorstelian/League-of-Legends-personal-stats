@@ -397,6 +397,13 @@ async def dashboard(client, key, riot_id, queue='all'):
                            'lp': entry['leaguePoints'] if entry else None,
                            'wins': entry['wins'] if entry else 0,
                            'losses': entry['losses'] if entry else 0})
+            try:
+                recent_ids = await fetch(client, f'{regional}/lol/match/v5/matches/by-puuid/{puuid}/ids?queue={420 if label == "Solo / Duo" else 440}&start=0&count=2', key)
+                storage.observe_rank(riot_id, 420 if label == 'Solo / Duo' else 440, entry, recent_ids)
+            except RiotError:
+                # LP observation failure must not hide a successfully fetched rank.
+                pass
+
     except RiotError as exc:
         rank_warning = exc.message
     matches, warning = storage.matches(riot_id, QUEUES[queue]), None
@@ -538,7 +545,11 @@ async def get_match(match_id: str):
                 raise RiotError('This player was not found in the match.', 404)
             storage.save_match(player, summary)
             stored = storage.detail(player, match_id, {'raw': raw, 'puuid': account['puuid']})
-        return await build_match_details(stored, player)
+        result = await build_match_details(stored, player)
+        lp_match = next((m for m in storage.matches(player) if m['id'] == match_id), {})
+        result['lpChange'] = lp_match.get('lpChange')
+        result['lpSource'] = lp_match.get('lpSource')
+        return result
     except RiotError as exc:
         return JSONResponse({'message': exc.message}, status_code=exc.status)
 

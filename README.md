@@ -139,3 +139,13 @@ Trends can compare rolling last-30-days vs preceding-30-days windows (default), 
 Trends comparison count supports 30 (default), 50, or 100 in both Days and Games modes. The count applies to each window, including champion-form columns; weekly bars stay unchanged. `/api/trends` accepts `size=30|50|100`.
 
 Early-game reports persist compact per-profile/per-match checkpoint and pre-10-death summaries. First use builds missing entries; subsequent requests avoid raw timeline parsing. Queue/champion/date filters apply in SQL, authoritative role filtering precedes raw timeline loading, and detail/timeline updates invalidate cached summaries. Source-checked cache writes are batched. Import status uses small timeline metadata rather than full JSON; metadata is backfilled lazily for older databases. Heavy report preparation runs off the server event loop. The browser refreshes reports only when import counts change, avoids overlapping status polls and stops polling while hidden. No additional Riot requests are required.
+
+
+### LP tracking
+
+Match rows and match analysis show observed LP changes. Champion stats include sortable net LP and the number of tracked games, respecting queue and role filters. Unknown LP is excluded from totals, not counted as zero.
+
+Use the match library Refresh control before playing and after each ranked game to capture rank observations. Tracking attributes movement only when the queue's ranked record advances by one game and the latest two match IDs confirm that game. Older games, placements, rank resets, and gaps of multiple games remain unavailable. Observed changes can include dodge penalties or other rank adjustments; they are not per-match LP receipts from Riot. Solo/Duo, Flex, and player profiles are tracked separately.
+
+
+Historical LP can also be imported from explicit League of Graphs match records using `storage.import_lp_records(player, records)`. Records contain `id`, integer `delta`, `queue`, and the source match URL. The importer requires an eligible match already saved under that player, validates queue and result direction, preserves existing conflicting values, and stores provenance in `lp_sources`. Imported changes contribute to the same filtered champion totals as observed changes. The local October 29 backfill manifest is saved under `data/leagueofgraphs-lp-2026-10-29.json` (ignored by Git).

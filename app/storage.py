@@ -18,6 +18,8 @@ def connect():
     db.execute('CREATE TABLE IF NOT EXISTS settings (name TEXT PRIMARY KEY, body TEXT)')
     db.execute('CREATE TABLE IF NOT EXISTS timeline_meta (id TEXT PRIMARY KEY, unavailable INTEGER NOT NULL)')
     db.execute('CREATE TABLE IF NOT EXISTS early_game_cache (player TEXT, id TEXT, body TEXT, PRIMARY KEY(player,id))')
+    db.execute('CREATE TABLE IF NOT EXISTS lp_changes (player TEXT, id TEXT, delta INTEGER, PRIMARY KEY(player,id))')
+    db.execute('CREATE TABLE IF NOT EXISTS lp_sources (player TEXT, id TEXT, body TEXT, PRIMARY KEY(player,id))')
     for action in ('INSERT', 'UPDATE'):
         db.execute(f"""CREATE TRIGGER IF NOT EXISTS timeline_meta_{action.lower()} AFTER {action} ON timelines BEGIN
             INSERT OR REPLACE INTO timeline_meta VALUES (NEW.id, COALESCE(json_extract(NEW.body, '$.unavailable'), 0));
@@ -114,6 +116,12 @@ def matches(player, queue=None):
             match['matchupStatus'] = 'matched' if len(opponents) == 1 else 'ambiguous'
         if eligible_summary(match):
             result.append(match)
+    with connect() as db:
+        changes = dict(db.execute('SELECT id,delta FROM lp_changes WHERE player=?', (player,)))
+        sources = {mid: json.loads(body) for mid, body in db.execute('SELECT id,body FROM lp_sources WHERE player=?', (player,))}
+    for match in result:
+        match['lpChange'] = changes.get(match['id'])
+        match['lpSource'] = sources.get(match['id'])
     return [m for m in result if queue is None or m['queue'] == queue]
 
 
@@ -265,4 +273,60 @@ def early_game_rows(player, now, queue='all', role='all', champion=0, period='al
             report=small['report']
             result.append((match,None,{'unavailable':True} if unavailable else {'earlyReport':report} if report is not None else None))
         flush(db)
+    return result
+
+
+def observe_rank(player, queue, entry, recent_ids):
+    """Track observed rank movement only across one identified ranked game.
+
+    Observations can include dodge penalties; they are not Riot match LP receipts.
+    Multi-game gaps, placements and resets cannot be attributed to a match.
+    """
+    tiers = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER']
+    name = f'lp:{player}:{queue}'
+    previous = setting(name)
+    current = None
+    if entry and recent_ids and entry.get('tier') in tiers and entry.get('rank') in ('IV', 'III', 'II', 'I'):
+        tier = tiers.index(entry['tier'])
+        # Apex tiers share one continuous LP ladder.
+        points = min(tier, 7) * 400 + (0 if tier >= 7 else ['IV', 'III', 'II', 'I'].index(entry['rank']) * 100) + entry['leaguePoints']
+        current = {'head': recent_ids[0], 'points': points, 'wins': entry['wins'], 'losses': entry['losses']}
+    if previous and current and len(recent_ids) >= 2 and recent_ids[1] == previous.get('head'):
+        wins = current['wins'] - previous['wins']
+        losses = current['losses'] - previous['losses']
+        delta = current['points'] - previous['points']
+        if (wins, losses) in ((1, 0), (0, 1)) and -100 <= delta <= 100 and (delta >= 0 if wins else delta <= 0):
+            with connect() as db:
+                db.execute('INSERT OR IGNORE INTO lp_changes VALUES (?,?,?)', (player, current['head'], delta))
+    setting(name, current or {})
+
+
+def import_lp_records(player, records):
+    """Import explicit LP records only for matching, eligible saved games.
+
+    Keep the source URL and never silently replace a conflicting LP value.
+    """
+    result = {'imported': 0, 'unchanged': 0, 'missing': 0, 'invalid': 0, 'conflicts': 0}
+    with connect() as db:
+        for record in records:
+            mid, delta = record.get('id'), record.get('delta')
+            source = record.get('source', '')
+            if not isinstance(mid, str) or type(delta) is not int or not -1000 <= delta <= 1000 or not isinstance(source, str) or not source.startswith('https://www.leagueofgraphs.com/match/eune/') or source.split('#')[0].rsplit('/', 1)[-1] != mid.removeprefix('EUN1_'):
+                result['invalid'] += 1
+                continue
+            row = db.execute('SELECT body FROM matches WHERE player=? AND id=?', (player, mid)).fetchone()
+            if not row:
+                result['missing'] += 1
+                continue
+            match = json.loads(row[0])
+            if not eligible_summary(match) or match.get('queue') != record.get('queue') or type(match.get('win')) is not bool or (delta > 0 and not match['win']) or (delta < 0 and match['win']):
+                result['invalid'] += 1
+                continue
+            prior = db.execute('SELECT delta FROM lp_changes WHERE player=? AND id=?', (player, mid)).fetchone()
+            if prior and prior[0] != delta:
+                result['conflicts'] += 1
+                continue
+            db.execute('INSERT OR IGNORE INTO lp_changes VALUES (?,?,?)', (player, mid, delta))
+            db.execute('INSERT OR REPLACE INTO lp_sources VALUES (?,?,?)', (player, mid, json.dumps({'name': 'League of Graphs', 'url': source})))
+            result['unchanged' if prior else 'imported'] += 1
     return result

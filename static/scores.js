@@ -76,5 +76,18 @@ function matchBuildAndScore(match) {
   } else {
     const pending = document.createElement('small'); pending.textContent = 'Items pending'; build.append(pending);
   }
-  return [build, scoreGauge(match.score)];
+  const score = document.createElement('div');
+  score.append(scoreGauge(match.score));
+  const lp = document.createElement('small'); lp.textContent = formatLP(match.lpChange);
+  lp.title = match.lpSource ? `Recorded by ${match.lpSource.name}: ${match.lpSource.url}` : 'Observed rank movement between refreshes; may include dodge penalties. Unavailable for older games or gaps of multiple games.';
+  score.append(lp);
+  return [build, score];
+}
+
+function formatLP(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? `${value > 0 ? '+' : ''}${value} LP` : 'LP unavailable';
+}
+function trackedLP(matches) {
+  const tracked = matches.filter(m => typeof m.lpChange === 'number' && Number.isFinite(m.lpChange));
+  return {total: tracked.length ? tracked.reduce((n,m) => n + m.lpChange, 0) : null, count: tracked.length};
 }
